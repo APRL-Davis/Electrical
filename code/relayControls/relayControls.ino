@@ -19,7 +19,7 @@ static boolean state6 = 0;
 
 unsigned int fireTime = 10000;
 unsigned int fireStart = 0;
-int command;
+String command;
 
 void setup() {
   // put your setup code here, to run once:
@@ -45,22 +45,17 @@ void relaysCal()
   }
 }
 
-void startSeq(String command)
+void startSeq()
 {
-  if(command == "fire")
-  fireStart = millis();
-    while(millis()-fireStart<fireTime)
-    {
-      digitalWrite(RELAY_5, HIGH)
-      digitalWrite(RELAY_6, HIGH)
-    }
+    digitalWrite(RELAY_5, HIGH)
+    digitalWrite(RELAY_6, HIGH)
+    delay(10000); // 10 seconds fire
     digitalWrite(RELAY_5, LOW)
     digitalWrite(RELAY_6, LOW) 
 }
 
-void purge(String command)
+void purge()
 {
-  if(command == "p")
     digitalWrite(RELAY_3,HIGH);
     digitalWrite(RELAY_4,HIGH);
     digitalWrite(RELAY_5, HIGH)
@@ -72,38 +67,39 @@ void purge(String command)
 
 void loop() {
   // put your main code here, to run repeatedly:
-  Serial.println("Enter numerical command: ");
+  Serial.println("Enter commands: ");
   while(Serial.available()>0)
   {
-    command = Serial.parseInt();
+    command = Serial.readString();  
+    command.trim();                        
     switch (command) {
-      case 1: // relay 1 on
+      case "r1": // relay 1 on
         state1 = !state1;
         digitalWrite(RELAY_1, state1);
-      case 2: // relay 2 on
+      case "r2": // relay 2 on
         state2 = !state2;
         digitalWrite(RELAY_2, state2);
-      case 3: // relay 3 on
+      case "r3": // relay 3 on
         state3 = !state3;
         digitalWrite(RELAY_3, state3);
-      case 4: // relay 4 on
+      case "r4": // relay 4 on
         state4 = !state4;
         digitalWrite(RELAY_4, state4);
-      case 5: // relay 5 on
+      case "r5": // relay 5 on
         state5 = !state5;
         digitalWrite(RELAY_5, state5);
-      case 6: // relay 6 on
+      case "r6": // relay 6 on
         state6 = !state6;
-        digitalWrite(RELAY_6, state6);        
+        digitalWrite(RELAY_6, state6);
+      case "purge":
+        purge();
+      case "fire":
+        startSeq();
+      case "cal":
+        relaysCal();
       default:
         break;
     }
-
-    if(command == "fire")
-    {
-      fireStart = millis
-    }
-    startSeq(command);
       
   }
 }
