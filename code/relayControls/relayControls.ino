@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <wiring.h>
 
 #define RELAY_1 3
 #define RELAY_2 4
@@ -10,7 +9,8 @@
 #define fireTrigger 11
 #define purgeTrigger 10
 
-relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
+int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
+long randNumber;
 
 unsigned long previousTime;  //some global variables available anywhere in the program
 unsigned long currentMillis;
@@ -56,7 +56,7 @@ void setup() {
 
 void relaysCal()
 {
-  for (int i=1,i<=6>,i++)
+  for (int i=1; i<=6; i++)
   {
     digitalWrite(relayPins[i],HIGH);
     delay(3000);
@@ -88,7 +88,9 @@ void purge()
 
 void loop() {
   // put your main code here, to run repeatedly:
-  currentMillis = currentMillis();
+  randNumber = random(65000);
+  Serial.println(randNumber);
+  currentMillis = millis();
   Serial.println("Enter commands: ");
   if (Serial.available()>0){
     command = Serial.parseInt();                 
@@ -115,7 +117,7 @@ void loop() {
     case 7:
       relaysCal();
     case 8:
-      digitaWrite(fireTrigger, digitalRead(fireTrigger) ^ 1);
+      digitalWrite(fireTrigger, digitalRead(fireTrigger) ^ 1);
     case 9:
       digitalWrite(purgeTrigger, digitalRead(purgeTrigger) ^ 1);
     default:
@@ -125,7 +127,7 @@ void loop() {
   {
     if(currentMillis - previousTime >= fireTime)
     {
-      digitaWrite(fireTrigger, digitalRead(purgeTrigger) ^ 1);
+      digitalWrite(fireTrigger, digitalRead(purgeTrigger) ^ 1);
       previousTime = currentMillis;
     }
   }
@@ -133,7 +135,7 @@ void loop() {
   {
     if(currentMillis - previousTime >= purgeTime)
     {
-      digitaWrite(purgeTrigger, digitalRead(purgeTrigger) ^ 1);
+      digitalWrite(purgeTrigger, digitalRead(purgeTrigger) ^ 1);
       previousTime = currentMillis;
     }
   }
