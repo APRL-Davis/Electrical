@@ -1,14 +1,14 @@
 #include <Arduino.h>
 #include <wiring.h>
 
-#define RELAY_1 8
-#define RELAY_2 3
-#define RELAY_3 4
-#define RELAY_4 5
-#define RELAY_5 6
-#define RELAY_6 7
-#define fireTrigger 2
-#define purgeTrigger 1
+#define RELAY_1 3
+#define RELAY_2 4
+#define RELAY_3 5
+#define RELAY_4 6
+#define RELAY_5 7
+#define RELAY_6 8
+#define fireTrigger 11
+#define purgeTrigger 10
 
 relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
 
