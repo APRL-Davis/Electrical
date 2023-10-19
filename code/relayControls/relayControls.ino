@@ -12,7 +12,7 @@
 int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
 long randNumber;
 
-unsigned long previousTime;  //some global variables available anywhere in the program
+unsigned long previousTime;
 unsigned long currentMillis;
 
 // interrupt pins
@@ -29,7 +29,6 @@ static bool state6 = 0;
 
 const unsigned int fireTime = 10000;
 const unsigned int purgeTime = 6000;
-unsigned int fireStart = 0;
 
 int command;
 
@@ -118,26 +117,20 @@ void loop() {
       relaysCal();
     case 8:
       digitalWrite(fireTrigger, digitalRead(fireTrigger) ^ 1);
+      previousTime = millis();
     case 9:
       digitalWrite(purgeTrigger, digitalRead(purgeTrigger) ^ 1);
+      previousTime = millis();
     default:
       break;
   }
-  if(digitalRead(fireTrigger) == 0)
+  if(digitalRead(fireTrigger) == 0 && currentMillis - previousTime >= purgeTime)
   {
-    if(currentMillis - previousTime >= fireTime)
-    {
-      digitalWrite(fireTrigger, digitalRead(purgeTrigger) ^ 1);
-      previousTime = currentMillis;
-    }
+    digitalWrite(fireTrigger, digitalRead(purgeTrigger) ^ 1);
   }
-  if(digitalRead(purgeTrigger) == 0)
+  if(digitalRead(purgeTrigger) == 0 && currentMillis - previousTime >= purgeTime)
   {
-    if(currentMillis - previousTime >= purgeTime)
-    {
-      digitalWrite(purgeTrigger, digitalRead(purgeTrigger) ^ 1);
-      previousTime = currentMillis;
-    }
+    digitalWrite(purgeTrigger, digitalRead(purgeTrigger) ^ 1);
   }
 }
 
