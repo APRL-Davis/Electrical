@@ -6,8 +6,8 @@
 #define RELAY_4 6
 #define RELAY_5 7
 #define RELAY_6 8
-#define fireTrigger 11
-#define purgeTrigger 10
+#define fireTrigger 11 //whatever the interrupt pin is
+#define purgeTrigger 10 //whatever the interrupt pin is
 
 int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
 long randNumber;
@@ -49,6 +49,7 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(fireTrigger),startSeq,FALLING);
   attachInterrupt(digitalPinToInterrupt(purgeTrigger),purge,FALLING);
+  Serial.println("Enter commands: ");
 }
 
 
@@ -87,10 +88,7 @@ void purge()
 
 void loop() {
   // put your main code here, to run repeatedly:
-  randNumber = random(65000);
-  Serial.println(randNumber);
   currentMillis = millis();
-  Serial.println("Enter commands: ");
   if (Serial.available()>0){
     command = Serial.parseInt();                 
   }
@@ -98,29 +96,45 @@ void loop() {
     case 1: // relay 1 on
       state1 = !state1;
       digitalWrite(RELAY_1, state1);
+      Serial.println("Enter commands: ");
+      break;
     case 2: // relay 2 on
       state2 = !state2;
       digitalWrite(RELAY_2, state2);
+      Serial.println("Enter commands: ");
+      break;
     case 3: // relay 3 on
       state3 = !state3;
       digitalWrite(RELAY_3, state3);
+      Serial.println("Enter commands: ");
+      break;
     case 4: // relay 4 on
       state4 = !state4;
       digitalWrite(RELAY_4, state4);
+      Serial.println("Enter commands: ");
+      break;
     case 5: // relay 5 on
       state5 = !state5;
       digitalWrite(RELAY_5, state5);
+      Serial.println("Enter commands: ");
+      break;
     case 6: // relay 6 on
       state6 = !state6;
       digitalWrite(RELAY_6, state6);
+      Serial.println("Enter commands: ");
+      break;
     case 7:
       relaysCal();
+      Serial.println("Enter commands: ");
+      break;
     case 8:
       digitalWrite(fireTrigger, digitalRead(fireTrigger) ^ 1);
       previousTime = millis();
+      break;
     case 9:
       digitalWrite(purgeTrigger, digitalRead(purgeTrigger) ^ 1);
       previousTime = millis();
+      break;
     default:
       break;
   }
