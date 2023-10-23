@@ -14,7 +14,7 @@
 int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
 long randNumber;
 
-volatile unsigned long previousTime;
+unsigned long previousTime;
 unsigned long currentMillis;
 unsigned long elapsedTime;
 
@@ -123,15 +123,18 @@ void loop() {
       Serial.println("Enter commands: ");
       break;
     case 7:
+      Serial.println("Calibrating...");
       relaysCal();
       Serial.println("Enter commands: ");
       break;
     case 8:
+      Serial.println("Fire");
       digitalWrite(fire, digitalRead(fire) ^ 1);
       previousTime = millis();
       break;
     case 9:
-      digitalWrite(purging, digitalRead(fire) ^ 1);
+      Serial.println("Purge");
+      digitalWrite(purging, digitalRead(purging) ^ 1);
       previousTime = millis();
       break;
     default:
@@ -143,7 +146,7 @@ void loop() {
     digitalWrite(fire, digitalRead(fire) ^ 1);
     previousTime = 0;
   }
-  if(digitalRead(RELAY_5) == 1 && elapsedTime >= purgeTime)
+  if(digitalRead(RELAY_3) == 1 && elapsedTime >= purgeTime)
   {
     digitalWrite(purging, digitalRead(purging) ^ 1);
     previousTime = 0;
