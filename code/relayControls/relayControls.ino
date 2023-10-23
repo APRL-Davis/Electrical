@@ -1,19 +1,22 @@
 #include <Arduino.h>
 
-#define RELAY_1 3
+#define RELAY_1 13
 #define RELAY_2 4
 #define RELAY_3 5
 #define RELAY_4 6
 #define RELAY_5 7
 #define RELAY_6 8
-#define fireTrigger 11 //whatever the interrupt pin is
-#define purgeTrigger 10 //whatever the interrupt pin is
+#define fireTrigger 2 //whatever the interrupt pin is
+#define purgeTrigger 3 //whatever the interrupt pin is
+#define fire 12
+#define purging 11
 
 int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
 long randNumber;
 
-unsigned long previousTime;
+volatile unsigned long previousTime;
 unsigned long currentMillis;
+unsigned long elapsedTime;
 
 // interrupt pins
 volatile bool fireState;
@@ -27,8 +30,8 @@ static bool state4 = 0;
 static bool state5 = 0;
 static bool state6 = 0;
 
-const unsigned int fireTime = 10000;
-const unsigned int purgeTime = 6000;
+const unsigned int fireTime = 5000;
+const unsigned int purgeTime = 3000;
 
 int command;
 
@@ -43,12 +46,13 @@ void setup() {
   pinMode(RELAY_4, OUTPUT);
   pinMode(RELAY_5, OUTPUT);
   pinMode(RELAY_6, OUTPUT);
+  pinMode(fire, OUTPUT);
+  pinMode(purging, OUTPUT);
+  pinMode(fireTrigger,INPUT);
+  pinMode(purgeTrigger,INPUT);
 
-  pinMode(fireTrigger,INPUT_PULLUP);
-  pinMode(purgeTrigger,INPUT_PULLUP);
-
-  attachInterrupt(digitalPinToInterrupt(fireTrigger),startSeq,FALLING);
-  attachInterrupt(digitalPinToInterrupt(purgeTrigger),purge,FALLING);
+  attachInterrupt(digitalPinToInterrupt(fireTrigger),startSeq,CHANGE);
+  attachInterrupt(digitalPinToInterrupt(purgeTrigger),purge,CHANGE);
   Serial.println("Enter commands: ");
 }
 
@@ -56,34 +60,29 @@ void setup() {
 
 void relaysCal()
 {
-  for (int i=1; i<=6; i++)
+  for (int i=0; i<6; i++)
   {
     digitalWrite(relayPins[i],HIGH);
-    delay(3000);
+    delay(1000);
     digitalWrite(relayPins[i],LOW);
   }
 }
 
 void startSeq()
 {
-  if(digitalRead(fireTrigger)==LOW)
-  {
-    fireState =! fireState;
-    digitalWrite(RELAY_5, fireState);
-    digitalWrite(RELAY_6, fireState);
-  }
+  fireState =! fireState;
+  digitalWrite(RELAY_5, fireState);
+  digitalWrite(RELAY_6, fireState);
 }
 
 void purge()
 {
-  if(digitalRead(purgeTrigger)==LOW)
-  {
-    purgeState =! purgeState;
-    digitalWrite(RELAY_3,purgeState);
-    digitalWrite(RELAY_4,purgeState);
-    digitalWrite(RELAY_5, purgeState);
-    digitalWrite(RELAY_6, purgeState);
-  }
+
+  purgeState =! purgeState;
+  digitalWrite(RELAY_3,purgeState);
+  digitalWrite(RELAY_4,purgeState);
+  digitalWrite(RELAY_5, purgeState);
+  digitalWrite(RELAY_6, purgeState);
 }
 
 void loop() {
@@ -128,28 +127,25 @@ void loop() {
       Serial.println("Enter commands: ");
       break;
     case 8:
-      digitalWrite(fireTrigger, digitalRead(fireTrigger) ^ 1);
+      digitalWrite(fire, digitalRead(fire) ^ 1);
       previousTime = millis();
       break;
     case 9:
-      digitalWrite(purgeTrigger, digitalRead(purgeTrigger) ^ 1);
+      digitalWrite(purging, digitalRead(fire) ^ 1);
       previousTime = millis();
       break;
     default:
       break;
   }
-  if(digitalRead(fireTrigger) == 0 && currentMillis - previousTime >= purgeTime)
+  elapsedTime = currentMillis-previousTime;
+  if(digitalRead(RELAY_5) == 1 && elapsedTime >= fireTime)
   {
-    digitalWrite(fireTrigger, digitalRead(purgeTrigger) ^ 1);
+    digitalWrite(fire, digitalRead(fire) ^ 1);
+    previousTime = 0;
   }
-  if(digitalRead(purgeTrigger) == 0 && currentMillis - previousTime >= purgeTime)
+  if(digitalRead(RELAY_5) == 1 && elapsedTime >= purgeTime)
   {
-    digitalWrite(purgeTrigger, digitalRead(purgeTrigger) ^ 1);
+    digitalWrite(purging, digitalRead(purging) ^ 1);
+    previousTime = 0;
   }
 }
-
-// send and receiver command through serial 
-// command is set of 2 numbers. First digit indicates relay number; second digit indicates the desired state of the relay (on/off = 1/2)
-// make the control code into a function
-// 6 relay
-// coding topics: serial, input/output mode + arduino
