@@ -23,6 +23,11 @@ char ReplyBuffer[] = "acknowledged";        // a string to send back
 // An EthernetUDP instance to let us send and receive packets over UDP
 EthernetUDP Udp;
 
+// Timing settings
+IntervalTimer sensorTimer;
+volatile bool readyToReadSensors = false;
+const int sensorInterval = 1000; // in microseconds (f = 1000 Hz => T = 1 ms = 1000 us)
+
 void setup() {
 
   // start the Ethernet
@@ -67,10 +72,13 @@ void setup() {
 
   // start UDP
   Udp.begin(localPort);
+
+  // Begin timers
+  sensorTimer.begin(sensorTimerISR, sensorInterval);
+
 }
 
 void loop() {
-  readSensors()
   // if there's data available, read a packet
   int packetSize = Udp.parsePacket();
   if (packetSize) {
@@ -96,12 +104,16 @@ void loop() {
     Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
     Udp.write(ReplyBuffer);
     Udp.endPacket();
+
+    if (readyToReadSensors) {
+      readyToReadSensors = false;
+      readSensors();
+    }
   }
-  delay(10);
+  delayMicroseconds(50);
 }
 
 void readSensors() {
-  delay(100);
   digitalWrite(CS1, LOW)
   sensors1 = SPI.transfer(B 0010 0000 0000 0100)
   digitalWrite(CS1, HIGH)
@@ -115,4 +127,8 @@ void readSensors() {
   for (byte i = 0, i<7, i++) {
     char dataPacketString[i] = data[i];
   }
+}
+
+void sensorTimerISR() {
+  readyToReadSensors = true;
 }
