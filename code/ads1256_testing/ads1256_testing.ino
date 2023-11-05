@@ -5,7 +5,7 @@
 #include "ads12xx.h"
 #include "adc_functions.h"
 
-#define NOP __ams__("nop\n\t")
+#define NOP __ams__("nop\n\t") //timing for one tick
 
 void setup() {
   // put your setup code here, to run once:
