@@ -1,11 +1,11 @@
 #include <Arduino.h>
 
-const int RELAY_1 = 3;
-const int RELAY_2 = 4;
-const int RELAY_3 = 5;
-const int RELAY_4 = 6;
-const int RELAY_5 = 7;
-const int RELAY_6 = 8;
+const int RELAY_1 = 2;
+const int RELAY_2 = 3;
+const int RELAY_3 = 4;
+const int RELAY_4 = 5;
+const int RELAY_5 = 6;
+const int RELAY_6 = 7;
 
 int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
 long randNumber;
