@@ -1,15 +1,11 @@
 #include <Arduino.h>
 
-#define RELAY_1 13
-#define RELAY_2 4
-#define RELAY_3 5
-#define RELAY_4 6
-#define RELAY_5 7
-#define RELAY_6 8
-#define fireTrigger 2 //whatever the interrupt pin is
-#define purgeTrigger 3 //whatever the interrupt pin is
-#define fire 12
-#define purging 11
+const int RELAY_1 = 2;
+const int RELAY_2 = 3;
+const int RELAY_3 = 4;
+const int RELAY_4 = 5;
+const int RELAY_5 = 6;
+const int RELAY_6 = 7;
 
 int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
 long randNumber;
@@ -21,8 +17,9 @@ unsigned long elapsedTime;
 // interrupt pins
 volatile bool fireState;
 volatile bool purgeState;
+volatile bool isolationState;
 
-// relay states
+// relay states/
 static bool state1 = 0;
 static bool state2 = 0;
 static bool state3 = 0;
@@ -46,13 +43,7 @@ void setup() {
   pinMode(RELAY_4, OUTPUT);
   pinMode(RELAY_5, OUTPUT);
   pinMode(RELAY_6, OUTPUT);
-  pinMode(fire, OUTPUT);
-  pinMode(purging, OUTPUT);
-  pinMode(fireTrigger,INPUT);
-  pinMode(purgeTrigger,INPUT);
 
-  attachInterrupt(digitalPinToInterrupt(fireTrigger),startSeq,CHANGE);
-  attachInterrupt(digitalPinToInterrupt(purgeTrigger),purge,CHANGE);
   Serial.println("Enter commands: ");
 }
 
@@ -68,6 +59,14 @@ void relaysCal()
   }
 }
 
+void pressurize()
+{
+  isolationState =! isolationState;
+  digitalWrite(RELAY_1, isolationState);
+  digitalWrite(RELAY_2, isolationState);  
+}
+
+// toggle firing sequence
 void startSeq()
 {
   fireState =! fireState;
@@ -75,6 +74,7 @@ void startSeq()
   digitalWrite(RELAY_6, fireState);
 }
 
+// toggle purge sequence
 void purge()
 {
 
@@ -129,26 +129,32 @@ void loop() {
       break;
     case 8:
       Serial.println("Fire");
-      digitalWrite(fire, digitalRead(fire) ^ 1);
+      startSeq(); 
       previousTime = millis();
-      break;
+      break;  
     case 9:
       Serial.println("Purge");
-      digitalWrite(purging, digitalRead(purging) ^ 1);
+      purge();
       previousTime = millis();
       break;
+    case 10:
+      Serial.println("Pressurizing");
+      pressurize();
     default:
       break;
   }
+
   elapsedTime = currentMillis-previousTime;
-  if(digitalRead(RELAY_5) == 1 && elapsedTime >= fireTime)
+  
+  if(fireState == 1 && elapsedTime >= fireTime)
   {
-    digitalWrite(fire, digitalRead(fire) ^ 1);
-    previousTime = 0;
+    startSeq();
+    previousTime = millis();
+    purge();
   }
-  if(digitalRead(RELAY_3) == 1 && elapsedTime >= purgeTime)
+  if(purgeState == 1 && elapsedTime >= purgeTime)
   {
-    digitalWrite(purging, digitalRead(purging) ^ 1);
-    previousTime = 0;
+    purge();
+    previousTime = millis();
   }
 }
