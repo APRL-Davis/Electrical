@@ -54,7 +54,7 @@ void setup() {
   Ethernet.begin(mac, ip);
 
   // Open serial communications and wait for port to open:
-  Serial.begin(9600);
+  Serial.begin(115200);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
@@ -108,9 +108,9 @@ void loop() {
     if (readyToReadSensors) {
       readyToReadSensors = false;
       readSensors();
-    }
   }
-  delayMicroseconds(50);
+  }
+    delayMicroseconds(50);
 }
 
 void readSensors() {
