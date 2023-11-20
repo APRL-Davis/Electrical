@@ -1,6 +1,7 @@
 #include <NativeEthernet.h>
 #include <NativeEthernetUdp.h>
 #include <SPI.h>
+#include <inttypes.h>
 // A lot of placeholders and Unknowns for now
 
 // Enter a MAC address and IP address for your controller below.
@@ -27,6 +28,15 @@ EthernetUDP Udp;
 IntervalTimer sensorTimer;
 volatile bool readyToReadSensors = false;
 const int sensorInterval = 1000; // in microseconds (f = 1000 Hz => T = 1 ms = 1000 us)
+
+// Structures and settings for sensors
+typedef struct {
+  
+  byte CS;
+  byte speed;
+  byte bitorder;
+  byte mode;
+} sensorSettings;
 
 void setup() {
 
