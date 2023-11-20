@@ -29,6 +29,10 @@ IntervalTimer sensorTimer;
 volatile bool readyToReadSensors = false;
 const int sensorInterval = 1000; // in microseconds (f = 1000 Hz => T = 1 ms = 1000 us)
 
+// GLOBAL VARIABLES
+bool skipDelay;
+bool readyToSendData = false;
+
 // Structures and settings for sensors
 typedef struct {
   
@@ -89,6 +93,17 @@ void setup() {
 }
 
 void loop() {
+
+  // Run through the possible events in this loop starting with
+  // the highest-priority events and shortest execution times
+
+  // start with sensor data collection
+  if (readyToReadSensors) {
+    readyToReadSensors = false;
+    readSensors();
+    skipDelay = true;
+  }
+
   // if there's data available, read a packet
   int packetSize = Udp.parsePacket();
   if (packetSize) {
@@ -114,13 +129,21 @@ void loop() {
     Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
     Udp.write(ReplyBuffer);
     Udp.endPacket();
+  }
 
-    if (readyToReadSensors) {
-      readyToReadSensors = false;
-      readSensors();
+  // if there's data to send, send a UDP packet
+  if (readyToSendData) {
+    readyToSendData = false;
+    // send the packet reply
+    // ...
   }
-  }
+
+  if (!skipDelay) {
     delayMicroseconds(50);
+  } else {
+    skipDelay = false;
+  }
+  
 }
 
 void readSensors() {
@@ -141,4 +164,11 @@ void readSensors() {
 
 void sensorTimerISR() {
   readyToReadSensors = true;
+}
+
+int readThermocoupleSensor(int pin) {
+  // Read the thermocouple sensor on the given pin
+  // ...
+  int sensorValue = 0;
+  return sensorValue;
 }
