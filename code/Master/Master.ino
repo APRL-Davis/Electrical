@@ -42,8 +42,8 @@ size_t currentPacketID = 0; // index of the current packet
 // sensor data structures for transmission
 typedef struct sensorData{
   time_t timestamp;
-  uint16_t sensorID;
   double sensorValue;
+  uint16_t sensorID;
 } sensorData;
 
 typedef struct dataPacket{
@@ -64,7 +64,7 @@ enum sensorType {THERMOCOUPLE, PRESSURE};
 enum sensorSerialType {sstSPI, sstI2C, sstUART};
 enum SPIPins {CSPin = 0, SCKPin = 1, MISOPin = 2, MOSIPin = 3};
 
-typedef struct {
+typedef struct sensorSettings {
   uint32_t speed;
   // SPI: pins[0] = CS, pins[1] = SCK, pins[2] = MISO, pins[3] = MOSI
   // I2C: pins[0] = SDA, pins[1] = SCL
@@ -184,7 +184,9 @@ void loop() {
 void readSensors() {
   // read the sensors and store them in the data array
   unsigned int lengthOfSensors = sizeof(sensors)/sizeof(sensorSettings);
+
   for (unsigned int i = 0; i < lengthOfSensors; i++) {
+
     switch (sensors[i].type) {
       case THERMOCOUPLE:
         outgoingDataPacketBuffers[currentDataPacketBuffer]
@@ -207,6 +209,7 @@ void readSensors() {
       default:
         break;
     }
+    
     if (currentSensorReadingIndex >= SENSOR_READINGS_PER_PACKET) {
       currentSensorReadingIndex = 0;
       outgoingDataPacketBuffers[currentDataPacketBuffer].timestamp = micros();
