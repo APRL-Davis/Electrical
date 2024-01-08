@@ -2,7 +2,7 @@
 
 /*======== ADC ========*/
 
-ADS1256 adc(2, 2500000, 9, 10, 2.500); //DRDY, SPI speed, SYNC(PDWN), CS, VREF(float).
+ADS1256 adc(2, 2500000, 9, 10, 2.5); //DRDY, SPI speed, SYNC(PDWN), CS, VREF(float).
 
 long rawConversion = 0; //24-bit raw value
 float voltageValue = 0; //human-readable floating point value
@@ -16,12 +16,12 @@ int pgaSelection = 0; //Number used to pick the PGA value from the above array
 
 /*======== Relays ========*/
 
-const int RELAY_1 = 2;
-const int RELAY_2 = 3;
-const int RELAY_3 = 4;
-const int RELAY_4 = 5;
-const int RELAY_5 = 6;
-const int RELAY_6 = 7;
+const int RELAY_1 = 11; // isok
+const int RELAY_2 = 3; // isol
+const int RELAY_3 = 4; // main k
+const int RELAY_4 = 5; // main l
+const int RELAY_5 = 6; // vent k
+const int RELAY_6 = 7; // vent l
 
 int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
 
@@ -92,7 +92,7 @@ void setup()
 
   while (!Serial)
   {
-    ; //Wait until the serial becomes available
+    ;//Wait until the serial becomes available
   }
 
   Serial.println("Serial available");
@@ -105,10 +105,12 @@ void setup()
   pinMode(RELAY_5, OUTPUT);
   pinMode(RELAY_6, OUTPUT);
 
+  Serial.println("Relays initialized...");
+
   // initialize adc and set gain + data rate
   adc.InitializeADC();
   adc.setPGA(PGA_1);
-  adc.setDRATE(DRATE_2000SPS);
+  adc.setDRATE(DRATE_100SPS);
 
   // perform self calibration
   adc.sendDirectCommand(SELFCAL);
@@ -122,29 +124,64 @@ void setup()
   delay(100);
 
   //Freeze the display for 3 sec
-  delay(3000);
+  delay(1000);
+}
+
+void relaysCal()
+{
+  for (int i=0; i<6; i++)
+  {
+    digitalWrite(relayPins[i],HIGH);
+    delay(1000);
+    digitalWrite(relayPins[i],LOW);
+  }
+}
+
+void pressurize()
+{
+  isolationState =! isolationState;
+   
+  digitalWrite(RELAY_1, isolationState);
+  digitalWrite(RELAY_2, isolationState); 
+}
+
+// toggle firing sequence
+void startSeq()
+{
+  fireState =! fireState;
+  digitalWrite(RELAY_3, fireState);
+  digitalWrite(RELAY_4, fireState);
+}
+
+// toggle purge sequence
+void purge()
+{
+  purgeState =! purgeState;
+  digitalWrite(RELAY_3, purgeState);
+  digitalWrite(RELAY_4, purgeState);
+  digitalWrite(RELAY_5, purgeState);
+  digitalWrite(RELAY_6, purgeState);
 }
 
 void loop() 
 {
-  currentMillis = millis();
+  uint8_t command;
 
   for (int i = 0; i < 8; i++)
   {
-    Serial.print(adc.cycleSingle(), 4); //print the converted single-ended results with 4 digits
-    Serial.print(","); //comma to separate sensors' values
+    Serial.print(adc.convertToVoltage(adc.cycleSingle()),4); //print the converted single-ended results with 4 digits
+    Serial.print(" "); //space to separate sensors' values
   }
   Serial.println();//Printing a linebreak - this will put the next 8 conversions in a new line
-        
-
+  
+  command = Serial.parseInt();
   if (Serial.available() > 0)
   {
-    char command = Serial.read();
-    if(command = 'c')
+    if(command == 21)
     {
       adc.sendDirectCommand(SELFCAL);
     }
-    if(command = 'v')
+    if(command == 22)
     {
       //Variables to store and measure elapsed time and define the number of conversions
       long numberOfSamples = 15000; //Number of conversions
@@ -170,108 +207,91 @@ void loop()
       Serial.print(numberOfSamples * (1000000.0 / finishTime), 3);
       Serial.println(" SPS");
     }
-    switch (command) {
-      case '1': // relay 1 on
-        state1 = !state1;
-        digitalWrite(RELAY_1, state1);
-        Serial.println("Enter commands: ");
-        break;
-      case '2': // relay 2 on
-        state2 = !state2;
-        digitalWrite(RELAY_2, state2);
-        Serial.println("Enter commands: ");
-        break;
-      case '3': // relay 3 on
-        state3 = !state3;
-        digitalWrite(RELAY_3, state3);
-        Serial.println("Enter commands: ");
-        break;
-      case '4': // relay 4 on
-        state4 = !state4;
-        digitalWrite(RELAY_4, state4);
-        Serial.println("Enter commands: ");
-        break;
-      case '5': // relay 5 on
-        state5 = !state5;
-        digitalWrite(RELAY_5, state5);
-        Serial.println("Enter commands: ");
-        break;
-      case '6': // relay 6 on
-        state6 = !state6;
-        digitalWrite(RELAY_6, state6);
-        Serial.println("Enter commands: ");
-        break;
-      case '7':
-        Serial.println("Calibrating...");
-        relaysCal();
-        Serial.println("Enter commands: ");
-        break;
-      case '8':
-        Serial.println("Fire");
-        startSeq(); 
-        previousTime = millis();
-        break;  
-      case '9':
-        Serial.println("Purge");
-        purge();
-        previousTime = millis();
-        break;
-      case '10':
-        Serial.println("Pressurizing");
-        pressurize();
-      default:
-        break;
+    
+    if(command == 1) // relay 1 on
+    {
+      state1 = !state1;
+      digitalWrite(RELAY_1, state1);
+      Serial.println("Enter commands: ");
     }
-  }
+    if(command == 2) // relay 2 on
+    {
+      state2 = !state2;
+      digitalWrite(RELAY_2, state2);
+      Serial.println("Enter commands: ");
+    }
+    if(command == 3) // relay 3 on
+    {
+      state3 = !state3;
+      digitalWrite(RELAY_3, state3);
+      Serial.println("Enter commands: ");
+    }  
+    if(command == 4) // relay 4 on
+    {
+      state4 = !state4;
+      digitalWrite(RELAY_4, state4);
+      Serial.println("Enter commands: ");
+    }  
+    if(command == 5) // relay 5 on
+    {
+      state5 = !state5;
+      digitalWrite(RELAY_5, state5);
+      Serial.println("Enter commands: ");
+    }
+    if(command == 6) // relay 6 on
+    {
+      state6 = !state6;
+      digitalWrite(RELAY_6, state6);
+      Serial.println("Enter commands: ");
+    }
+    if(command == 7)
+    {
+      Serial.println("Calibrating...");
+      relaysCal();
+      Serial.println("Enter commands: ");
+    }
+    if(command == 8)
+    {
+      Serial.println("Fire");
+      startSeq(); 
+      previousTime = millis();
+    }  
+    if(command == 9)
+    {
+      Serial.println("Purge");
+      purge();
+      previousTime = millis();
+    }  
+    if(command == 10)
+    {
+      Serial.println("Pressurizing");
+      state5 = !state5;
+      state6 = !state6;
+      digitalWrite(RELAY_5, state5);
+      digitalWrite(RELAY_6, state6);
+      pressurize();
+    }
+  }                           
 
-  elapsedTime = currentMillis-previousTime;
+  elapsedTime = millis() - previousTime;
   
   if(fireState == 1 && elapsedTime >= fireTime)
   {
     startSeq();
+    state1 = !state1;
+    state2 = !state2;
+    digitalWrite(RELAY_1, state1);
+    digitalWrite(RELAY_2, state2);    
     previousTime = millis();
     purge();
   }
   if(purgeState == 1 && elapsedTime >= purgeTime)
-  {
+  { 
+    state1 = !state1;
+    state2 = !state2;
+    digitalWrite(RELAY_1, state1);
+    digitalWrite(RELAY_2, state2); 
     purge();
     previousTime = millis();
   }
-
-}
-
-void relaysCal()
-{
-  for (int i=0; i<6; i++)
-  {
-    digitalWrite(relayPins[i],HIGH);
-    delay(1000);
-    digitalWrite(relayPins[i],LOW);
-  }
-}
-
-void pressurize()
-{
-  isolationState =! isolationState;
-  digitalWrite(RELAY_1, isolationState);
-  digitalWrite(RELAY_2, isolationState);  
-}
-
-// toggle firing sequence
-void startSeq()
-{
-  fireState =! fireState;
-  digitalWrite(RELAY_5, fireState);
-  digitalWrite(RELAY_6, fireState);
-}
-
-// toggle purge sequence
-void purge()
-{
-
-  purgeState =! purgeState;
-  digitalWrite(RELAY_3,purgeState);
-  digitalWrite(RELAY_4,purgeState);
-  digitalWrite(RELAY_5, purgeState);
-  digitalWrite(RELAY_6, purgeState);
 }

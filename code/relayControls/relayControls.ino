@@ -1,11 +1,11 @@
 #include <Arduino.h>
 
-const int RELAY_1 = 2;
-const int RELAY_2 = 3;
-const int RELAY_3 = 4;
-const int RELAY_4 = 5;
-const int RELAY_5 = 6;
-const int RELAY_6 = 7;
+const int RELAY_1 = 2; // kero iso
+const int RELAY_2 = 3; // lox iso
+const int RELAY_3 = 4; // kero main
+const int RELAY_4 = 5; // lox main
+const int RELAY_5 = 6; // ker vent
+const int RELAY_6 = 7; // lox vent
 
 int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
 long randNumber;
@@ -27,7 +27,7 @@ static bool state4 = 0;
 static bool state5 = 0;
 static bool state6 = 0;
 
-const unsigned int fireTime = 5000;
+const unsigned int fireTime = 10000;
 const unsigned int purgeTime = 3000;
 
 int command;
@@ -70,8 +70,8 @@ void pressurize()
 void startSeq()
 {
   fireState =! fireState;
-  digitalWrite(RELAY_5, fireState);
-  digitalWrite(RELAY_6, fireState);
+  digitalWrite(RELAY_3, fireState);
+  digitalWrite(RELAY_4, fireState);
 }
 
 // toggle purge sequence
@@ -79,8 +79,8 @@ void purge()
 {
 
   purgeState =! purgeState;
-  digitalWrite(RELAY_3,purgeState);
-  digitalWrite(RELAY_4,purgeState);
+  // digitalWrite(RELAY_3,purgeState);
+  // digitalWrite(RELAY_4,purgeState);
   digitalWrite(RELAY_5, purgeState);
   digitalWrite(RELAY_6, purgeState);
 }
@@ -149,8 +149,9 @@ void loop() {
   if(fireState == 1 && elapsedTime >= fireTime)
   {
     startSeq();
+    Serial.println("Main off");
     previousTime = millis();
-    purge();
+    // purge();
   }
   if(purgeState == 1 && elapsedTime >= purgeTime)
   {

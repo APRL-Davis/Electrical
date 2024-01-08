@@ -223,22 +223,21 @@ void ADS1256::sendDirectCommand(uint8_t directCommand)
 
 float ADS1256::convertToVoltage(int32_t rawData) //Converting the 24-bit data into a voltage value
 {	
-  if (rawData >> 23 == 1) //if the 24th digit (sign) is 1, the number is negative
-  {
-    rawData = rawData - 16777216;  //conversion for the negative sign
-    //"mirroring" around zero
-  }  
+  // if (rawData >> 23 == 1) //if the 24th digit (sign) is 1, the number is negative
+  // {
+  //   rawData = rawData - 16777216;  //conversion for the negative sign
+  //   //"mirroring" around zero
+  // }  
   
-  float voltage = ((2 * _VREF) / 8388608) * rawData / (pow(2, _PGA)); //8388608 = 2^{23} - 1
+  float voltage = ((2 * _VREF) / 8388608) * rawData / (pow(2, _PGA)); //8388608 = 2^{23} - 1  
   //REF: p23, Table 16.
 	
   return(voltage);
 }
 
-float ADS1256::convertPSI(float voltage, int16_t FSR)
+float ADS1256::convertPSI(float voltage, float FSR)
 {
 	float pressure = ((voltage-0.48)/(_VREF-0.48)) * FSR;
-
 	return(pressure);
 }
 
@@ -326,10 +325,11 @@ long ADS1256::readSingleContinuous() //Reads the recently selected input channel
 		waitForDRDY();
 	}	
 	
+	noInterrupts();
 	_outputBuffer[0] = SPI.transfer(0); // MSB 
 	_outputBuffer[1] = SPI.transfer(0); // Mid-byte
 	_outputBuffer[2] = SPI.transfer(0); // LSB
-	
+	interrupts();
 	_outputValue = ((long)_outputBuffer[0]<<16) | ((long)_outputBuffer[1]<<8) | (_outputBuffer[2]);
 	
 	return _outputValue;

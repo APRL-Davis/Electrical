@@ -99,11 +99,11 @@ class ADS1256
 	
 public:
 
-const byte DRDY_pin;
-const byte RESET_pin;
-const byte SYNC_pin;
-const byte CS_pin;
-const byte SPI_speed;
+  const byte DRDY_pin;
+  const byte RESET_pin;
+  const byte SYNC_pin;
+  const byte CS_pin;
+  const byte SPI_speed;
 
 	//Constructor
 	ADS1256(const byte DRDY_pin, const byte SPI_speed, const byte SYNC_pin, const byte CS_pin, float VREF);
@@ -142,7 +142,7 @@ const byte SPI_speed;
 	float convertToVoltage(int32_t rawData);
 		
 	//Converts voltage to pressure psi
-	float convertPSI(float voltage, int16_t FSR);
+	float convertPSI(float voltage, float FSR);
 
 	//Stop AD
 	void stopConversion();
