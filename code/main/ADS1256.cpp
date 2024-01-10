@@ -360,6 +360,7 @@ long ADS1256::cycleSingle()
       //Step 1. - Updating MUX
       switch (_cycle)
       {
+        noInterrupts();
         //Channels are written manually
         case 0: //Channel 2
           SPI.transfer(0x50 | 1); // 0x50 = WREG //1 = MUX
@@ -431,6 +432,6 @@ long ADS1256::cycleSingle()
 		  _cycle = 0; //Reset to 0 - Restart conversion from the 1st input channel
 	  }
     }	
-  
+  interrupts();
 	return _outputValue;
 }

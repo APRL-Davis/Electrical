@@ -16,15 +16,15 @@ int pgaSelection = 0; //Number used to pick the PGA value from the above array
 
 /*======== Relays ========*/
 
-const int RELAY_1 = 11; // isok
-const int RELAY_2 = 3; // isol
-const int RELAY_3 = 4; // main k
-const int RELAY_4 = 5; // main l
-const int RELAY_5 = 6; // vent k
-const int RELAY_6 = 7; // vent l
+const int RELAY_1 = 3; // isok
+const int RELAY_2 = 4; // isol
+const int RELAY_3 = 5; // main k
+const int RELAY_4 = 6; // main l
+const int RELAY_5 = 7; // vent k
+const int RELAY_6 = 8; // vent l
 
 int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
-
+  
 unsigned long previousTime;
 unsigned long currentMillis;
 unsigned long elapsedTime;
@@ -170,13 +170,14 @@ void loop()
   for (int i = 0; i < 8; i++)
   {
     Serial.print(adc.convertToVoltage(adc.cycleSingle()),4); //print the converted single-ended results with 4 digits
+    // Serial.print(i);
     Serial.print(" "); //space to separate sensors' values
   }
   Serial.println();//Printing a linebreak - this will put the next 8 conversions in a new line
   
-  command = Serial.parseInt();
   if (Serial.available() > 0)
-  {
+  { 
+    command = Serial.parseInt();  
     if(command == 21)
     {
       adc.sendDirectCommand(SELFCAL);
@@ -270,6 +271,10 @@ void loop()
       digitalWrite(RELAY_5, state5);
       digitalWrite(RELAY_6, state6);
       pressurize();
+    }
+    else
+    {
+      Serial.read();
     }
   }                           
 
