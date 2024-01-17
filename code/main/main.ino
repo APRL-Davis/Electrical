@@ -41,6 +41,7 @@ static bool state3 = 0;
 static bool state4 = 0;
 static bool state5 = 0;
 static bool state6 = 0;
+static bool calFlag = 0;
 
 const unsigned int fireTime = 5000;
 const unsigned int purgeTime = 3000;
@@ -129,11 +130,10 @@ void setup()
 
 void relaysCal()
 {
+  calFlag =! calFlag;
   for (int i=0; i<6; i++)
   {
-    digitalWrite(relayPins[i],HIGH);
-    delay(1000);
-    digitalWrite(relayPins[i],LOW);
+    digitalWrite(relayPins[i], calFlag);
   }
 }
 
@@ -247,9 +247,8 @@ void loop()
     }
     if(command == 7)
     {
-      Serial.println("Calibrating...");
       relaysCal();
-      Serial.println("Enter commands: ");
+      previousTime = millis();
     }
     if(command == 8)
     {
@@ -279,7 +278,13 @@ void loop()
   }                           
 
   elapsedTime = millis() - previousTime;
-  
+
+  if(calFlag == 1 && elapsedTime >= 5000)
+  {
+    relaysCal();
+    previousTime = millis();
+  }
+
   if(fireState == 1 && elapsedTime >= fireTime)
   {
     startSeq();
@@ -290,6 +295,7 @@ void loop()
     previousTime = millis();
     purge();
   }
+
   if(purgeState == 1 && elapsedTime >= purgeTime)
   { 
     state1 = !state1;
