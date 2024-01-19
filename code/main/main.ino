@@ -111,7 +111,7 @@ void setup()
   // initialize adc and set gain + data rate
   adc.InitializeADC();
   adc.setPGA(PGA_1);
-  adc.setDRATE(DRATE_100SPS);
+  adc.setDRATE(DRATE_2000SPS);
 
   // perform self calibration
   adc.sendDirectCommand(SELFCAL);
