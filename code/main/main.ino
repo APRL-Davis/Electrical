@@ -22,8 +22,9 @@ const int RELAY_3 = 5; // main k
 const int RELAY_4 = 6; // main l
 const int RELAY_5 = 7; // vent k
 const int RELAY_6 = 8; // vent l
+const int RELAY_7 = 9; // purge
 
-int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
+int relayPins[] = {RELAY_1, RELAY_2, RELAY_3, RELAY_4, RELAY_5, RELAY_6, RELAY_7};
   
 unsigned long previousTime;
 unsigned long currentMillis;
@@ -41,6 +42,7 @@ static bool state3 = 0;
 static bool state4 = 0;
 static bool state5 = 0;
 static bool state6 = 0;
+static bool state7 = 0;
 static bool calFlag = 0;
 
 const unsigned int fireTime = 5000;
@@ -105,13 +107,14 @@ void setup()
   pinMode(RELAY_4, OUTPUT);
   pinMode(RELAY_5, OUTPUT);
   pinMode(RELAY_6, OUTPUT);
+  pinMode(RELAY_7, OUTPUT);
 
   Serial.println("Relays initialized...");
 
   // initialize adc and set gain + data rate
   adc.InitializeADC();
   adc.setPGA(PGA_1);
-  adc.setDRATE(DRATE_2000SPS);
+  adc.setDRATE(DRATE_100SPS);
 
   // perform self calibration
   adc.sendDirectCommand(SELFCAL);
@@ -131,7 +134,7 @@ void setup()
 void relaysCal()
 {
   calFlag =! calFlag;
-  for (int i=0; i<6; i++)
+  for (int i=0; i<7; i++)
   {
     digitalWrite(relayPins[i], calFlag);
   }
@@ -161,6 +164,7 @@ void purge()
   digitalWrite(RELAY_4, purgeState);
   digitalWrite(RELAY_5, purgeState);
   digitalWrite(RELAY_6, purgeState);
+  digitalWrite(RELAY_7, purgeState);
 }
 
 void loop() 
@@ -245,24 +249,18 @@ void loop()
       digitalWrite(RELAY_6, state6);
       Serial.println("Enter commands: ");
     }
-    if(command == 7)
+    if(command == 7) // relay 7 on
+    {
+      state7 = !state7;
+      digitalWrite(RELAY_7, state7);
+      Serial.println("Enter commands: ");
+    }
+    if(command == 11)
     {
       relaysCal();
       previousTime = millis();
     }
-    if(command == 8)
-    {
-      Serial.println("Fire");
-      startSeq(); 
-      previousTime = millis();
-    }  
-    if(command == 9)
-    {
-      Serial.println("Purge");
-      purge();
-      previousTime = millis();
-    }  
-    if(command == 10)
+    if(command == 12)
     {
       Serial.println("Pressurizing");
       state5 = !state5;
@@ -271,6 +269,18 @@ void loop()
       digitalWrite(RELAY_6, state6);
       pressurize();
     }
+    if(command == 13)
+    {
+      Serial.println("Purge");
+      purge();
+      previousTime = millis();
+    }  
+    if(command == 14)
+    {
+      Serial.println("Fire");
+      startSeq(); 
+      previousTime = millis();
+    }  
     else
     {
       Serial.read();
