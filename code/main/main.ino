@@ -33,7 +33,8 @@ unsigned long elapsedTime;
 // interrupt pins
 volatile bool fireState;
 volatile bool purgeState;
-volatile bool isolationState;
+volatile bool pressureState;
+volatile bool checkState;
 
 // relay states/
 static bool state1 = 0;
@@ -47,6 +48,7 @@ static bool calFlag = 0;
 
 const unsigned int fireTime = 5000;
 const unsigned int purgeTime = 3000;
+const unsigned int checkTime = 2000;
 
 int drateValues[16] =
 {
@@ -127,44 +129,75 @@ void setup()
   Serial.println(adc.readRegister(DRATE_REG));
   delay(100);
 
-  //Freeze the display for 3 sec
+  //Freeze the display for 1 sec
   delay(1000);
 }
 
-void relaysCal()
+void startCheck()
+{
+  checkState = 1;
+  for (int i=0; i<7; i++)
+  {
+    digitalWrite(relayPins[i],HIGH);
+  }
+}
+
+void endCheck()
 {
   calFlag =! calFlag;
   for (int i=0; i<7; i++)
   {
-    digitalWrite(relayPins[i], calFlag);
+    digitalWrite(relayPins[i],LOW);
   }
 }
 
 void pressurize()
-{
-  isolationState =! isolationState;
-   
-  digitalWrite(RELAY_1, isolationState);
-  digitalWrite(RELAY_2, isolationState); 
+{ 
+  pressureState = 1; 
+  digitalWrite(RELAY_1, HIGH);
+  digitalWrite(RELAY_2, HIGH); 
 }
 
-// toggle firing sequence
-void startSeq()
+void depressurize()
 {
-  fireState =! fireState;
-  digitalWrite(RELAY_3, fireState);
-  digitalWrite(RELAY_4, fireState);
+  pressureState = 0;
+  digitalWrite(RELAY_1, LOW);
+  digitalWrite(RELAY_2, LOW); 
 }
 
-// toggle purge sequence
+// firing sequence
+void fire()
+{
+  fireState = 1;
+  digitalWrite(RELAY_3, HIGH);
+  digitalWrite(RELAY_4, HIGH);
+}
+
+void endFire()
+{
+  fireState = 0;
+  digitalWrite(RELAY_3, LOW);
+  digitalWrite(RELAY_4, LOW);
+}
+
+// purge sequence
 void purge()
 {
-  purgeState =! purgeState;
-  digitalWrite(RELAY_3, purgeState);
-  digitalWrite(RELAY_4, purgeState);
-  digitalWrite(RELAY_5, purgeState);
-  digitalWrite(RELAY_6, purgeState);
-  digitalWrite(RELAY_7, purgeState);
+  purgeState = 1;
+  digitalWrite(RELAY_3, LOW);
+  digitalWrite(RELAY_4, LOW);
+  digitalWrite(RELAY_5, LOW);
+  digitalWrite(RELAY_6, LOW);
+  digitalWrite(RELAY_7, HIGH);
+}
+
+void endPurge()
+{
+  purgeState = 0;
+  digitalWrite(RELAY_3, LOW);
+  digitalWrite(RELAY_4, LOW);
+  digitalWrite(RELAY_5, LOW);
+  digitalWrite(RELAY_6, LOW);
 }
 
 void loop() 
@@ -217,56 +250,46 @@ void loop()
     {
       state1 = !state1;
       digitalWrite(RELAY_1, state1);
-      Serial.println("Enter commands: ");
     }
     if(command == 2) // relay 2 on
     {
       state2 = !state2;
       digitalWrite(RELAY_2, state2);
-      Serial.println("Enter commands: ");
     }
     if(command == 3) // relay 3 on
     {
       state3 = !state3;
       digitalWrite(RELAY_3, state3);
-      Serial.println("Enter commands: ");
     }  
     if(command == 4) // relay 4 on
     {
       state4 = !state4;
       digitalWrite(RELAY_4, state4);
-      Serial.println("Enter commands: ");
     }  
     if(command == 5) // relay 5 on
     {
       state5 = !state5;
       digitalWrite(RELAY_5, state5);
-      Serial.println("Enter commands: ");
     }
     if(command == 6) // relay 6 on
     {
       state6 = !state6;
       digitalWrite(RELAY_6, state6);
-      Serial.println("Enter commands: ");
     }
     if(command == 7) // relay 7 on
     {
       state7 = !state7;
       digitalWrite(RELAY_7, state7);
-      Serial.println("Enter commands: ");
     }
     if(command == 11)
     {
-      relaysCal();
+      startCheck();
       previousTime = millis();
     }
+    
+    
     if(command == 12)
     {
-      Serial.println("Pressurizing");
-      state5 = !state5;
-      state6 = !state6;
-      digitalWrite(RELAY_5, state5);
-      digitalWrite(RELAY_6, state6);
       pressurize();
     }
     if(command == 13)
@@ -288,31 +311,23 @@ void loop()
   }                           
 
   elapsedTime = millis() - previousTime;
-
-  if(calFlag == 1 && elapsedTime >= 5000)
+  
+  if(checkState == 1 && elapsedTime >= checkTime)
   {
-    relaysCal();
+    endCheck();
     previousTime = millis();
   }
 
   if(fireState == 1 && elapsedTime >= fireTime)
   {
-    startSeq();
-    state1 = !state1;
-    state2 = !state2;
-    digitalWrite(RELAY_1, state1);
-    digitalWrite(RELAY_2, state2);    
+    endFire();    
     previousTime = millis();
     purge();
   }
 
   if(purgeState == 1 && elapsedTime >= purgeTime)
   { 
-    state1 = !state1;
-    state2 = !state2;
-    digitalWrite(RELAY_1, state1);
-    digitalWrite(RELAY_2, state2); 
-    purge();
+    endPurge();
     previousTime = millis();
   }
 }
