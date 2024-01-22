@@ -42,6 +42,7 @@ static bool state3 = 0;
 static bool state4 = 0;
 static bool state5 = 0;
 static bool state6 = 0;
+static bool calFlag = 0;
 
 const unsigned int fireTime = 5000;
 const unsigned int purgeTime = 3000;
@@ -112,7 +113,7 @@ void setup()
   // initialize adc and set gain + data rate
   adc.InitializeADC();
   adc.setPGA(PGA_1);
-  adc.setDRATE(DRATE_100SPS);
+  adc.setDRATE(DRATE_2000SPS);
 
   // perform self calibration
   adc.sendDirectCommand(SELFCAL);
@@ -300,7 +301,7 @@ void loop()
   
   if(checkState == 1 && elapsedTime >= checkTime)
   {
-    endCheck();    
+    endCheck();
     previousTime = millis();
   }
 
