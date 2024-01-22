@@ -22,7 +22,7 @@ const int RELAY_3 = 5; // main k
 const int RELAY_4 = 6; // main l
 const int RELAY_5 = 7; // vent k
 const int RELAY_6 = 8; // vent l
-const int RELAY_7 = 9; // purge
+const int RELAY_7 = 14; // purge
 
 int relayPins[] = {RELAY_1, RELAY_2, RELAY_3, RELAY_4, RELAY_5, RELAY_6, RELAY_7};
   
@@ -44,7 +44,7 @@ static bool state4 = 0;
 static bool state5 = 0;
 static bool state6 = 0;
 static bool state7 = 0;
-static bool calFlag = 0;
+
 
 const unsigned int fireTime = 5000;
 const unsigned int purgeTime = 3000;
@@ -144,7 +144,7 @@ void startCheck()
 
 void endCheck()
 {
-  calFlag =! calFlag;
+  checkState = 0;
   for (int i=0; i<7; i++)
   {
     digitalWrite(relayPins[i],LOW);
@@ -184,6 +184,7 @@ void endFire()
 void purge()
 {
   purgeState = 1;
+  depressurize();
   digitalWrite(RELAY_3, LOW);
   digitalWrite(RELAY_4, LOW);
   digitalWrite(RELAY_5, LOW);
@@ -194,10 +195,7 @@ void purge()
 void endPurge()
 {
   purgeState = 0;
-  digitalWrite(RELAY_3, LOW);
-  digitalWrite(RELAY_4, LOW);
-  digitalWrite(RELAY_5, LOW);
-  digitalWrite(RELAY_6, LOW);
+  digitalWrite(RELAY_7, LOW);
 }
 
 void loop() 
@@ -281,13 +279,13 @@ void loop()
       state7 = !state7;
       digitalWrite(RELAY_7, state7);
     }
+
+
     if(command == 11)
     {
       startCheck();
       previousTime = millis();
     }
-    
-    
     if(command == 12)
     {
       pressurize();
@@ -301,7 +299,7 @@ void loop()
     if(command == 14)
     {
       Serial.println("Fire");
-      startSeq(); 
+      fire(); 
       previousTime = millis();
     }  
     else
