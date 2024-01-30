@@ -22,8 +22,9 @@ const int RELAY_3 = 5; // main k
 const int RELAY_4 = 6; // main l
 const int RELAY_5 = 7; // vent k
 const int RELAY_6 = 8; // vent l
+const int RELAY_7 = 14; // purge
 
-int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
+int relayPins[] = {RELAY_1, RELAY_2, RELAY_3, RELAY_4, RELAY_5, RELAY_6, RELAY_7};
   
 unsigned long previousTime;
 unsigned long currentMillis;
@@ -42,7 +43,8 @@ static bool state3 = 0;
 static bool state4 = 0;
 static bool state5 = 0;
 static bool state6 = 0;
-static bool calFlag = 0;
+static bool state7 = 0;
+
 
 const unsigned int fireTime = 5000;
 const unsigned int purgeTime = 3000;
@@ -107,13 +109,14 @@ void setup()
   pinMode(RELAY_4, OUTPUT);
   pinMode(RELAY_5, OUTPUT);
   pinMode(RELAY_6, OUTPUT);
+  pinMode(RELAY_7, OUTPUT);
 
   Serial.println("Relays initialized...");
 
   // initialize adc and set gain + data rate
   adc.InitializeADC();
   adc.setPGA(PGA_1);
-  adc.setDRATE(DRATE_2000SPS);
+  adc.setDRATE(DRATE_100SPS);
 
   // perform self calibration
   adc.sendDirectCommand(SELFCAL);
@@ -133,7 +136,7 @@ void setup()
 void startCheck()
 {
   checkState = 1;
-  for (int i=0; i<6; i++)
+  for (int i=0; i<7; i++)
   {
     digitalWrite(relayPins[i],HIGH);
   }
@@ -142,7 +145,7 @@ void startCheck()
 void endCheck()
 {
   checkState = 0;
-  for (int i=0; i<6; i++)
+  for (int i=0; i<7; i++)
   {
     digitalWrite(relayPins[i],LOW);
   }
@@ -181,19 +184,18 @@ void endFire()
 void purge()
 {
   purgeState = 1;
-  digitalWrite(RELAY_3, HIGH);
-  digitalWrite(RELAY_4, HIGH);
-  digitalWrite(RELAY_5, HIGH);
-  digitalWrite(RELAY_6, HIGH);
+  depressurize();
+  digitalWrite(RELAY_3, LOW);
+  digitalWrite(RELAY_4, LOW);
+  digitalWrite(RELAY_5, LOW);
+  digitalWrite(RELAY_6, LOW);
+  digitalWrite(RELAY_7, HIGH);
 }
 
 void endPurge()
 {
   purgeState = 0;
-  digitalWrite(RELAY_3, LOW);
-  digitalWrite(RELAY_4, LOW);
-  digitalWrite(RELAY_5, LOW);
-  digitalWrite(RELAY_6, LOW);
+  digitalWrite(RELAY_7, LOW);
 }
 
 void loop() 
@@ -272,25 +274,34 @@ void loop()
       state6 = !state6;
       digitalWrite(RELAY_6, state6);
     }
-    if(command == 7)
+    if(command == 7) // relay 7 on
+    {
+      state7 = !state7;
+      digitalWrite(RELAY_7, state7);
+    }
+
+
+    if(command == 11)
     {
       startCheck();
       previousTime = millis();
     }
-    if(command == 8)
-    {
-      fire(); 
-      previousTime = millis();
-    }  
-    if(command == 9)
-    {
-      purge();
-      previousTime = millis();
-    }  
-    if(command == 10)
+    if(command == 12)
     {
       pressurize();
     }
+    if(command == 13)
+    {
+      Serial.println("Purge");
+      purge();
+      previousTime = millis();
+    }  
+    if(command == 14)
+    {
+      Serial.println("Fire");
+      fire(); 
+      previousTime = millis();
+    }  
     else
     {
       Serial.read();
