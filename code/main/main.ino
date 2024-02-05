@@ -2,7 +2,7 @@
 
 /*======== ADC ========*/
 
-ADS1256 adc(2, 2500000, 9, 10, 2.5); //DRDY, SPI speed, SYNC(PDWN), CS, VREF(float).
+ADS1256 adc(2, 2000000, 9, 10, 2.5); //DRDY, SPI speed, SYNC(PDWN), CS, VREF(float).
 
 long rawConversion = 0; //24-bit raw value
 float voltageValue = 0; //human-readable floating point value
@@ -31,10 +31,10 @@ unsigned long currentMillis;
 unsigned long elapsedTime;
 
 // interrupt pins
-volatile bool fireState;
-volatile bool purgeState;
-volatile bool pressureState;
-volatile bool checkState;
+bool fireState = 0;
+bool purgeState = 0;
+bool pressureState = 0;
+bool checkState = 0;
 
 // relay states/
 static bool state1 = 0;
@@ -116,7 +116,7 @@ void setup()
   // initialize adc and set gain + data rate
   adc.InitializeADC();
   adc.setPGA(PGA_1);
-  adc.setDRATE(DRATE_100SPS);
+  adc.setDRATE(DRATE_2000SPS);
 
   // perform self calibration
   adc.sendDirectCommand(SELFCAL);
@@ -156,6 +156,8 @@ void pressurize()
   pressureState = 1; 
   digitalWrite(RELAY_1, HIGH);
   digitalWrite(RELAY_2, HIGH); 
+  digitalWrite(RELAY_5, HIGH);
+  digitalWrite(RELAY_6, HIGH);
 }
 
 void depressurize()
@@ -163,6 +165,8 @@ void depressurize()
   pressureState = 0;
   digitalWrite(RELAY_1, LOW);
   digitalWrite(RELAY_2, LOW); 
+  digitalWrite(RELAY_5, LOW);
+  digitalWrite(RELAY_6, LOW);
 }
 
 // firing sequence
@@ -170,14 +174,7 @@ void fire()
 {
   fireState = 1;
   digitalWrite(RELAY_3, HIGH);
-  digitalWrite(RELAY_4, HIGH);
-}
-
-void endFire()
-{
-  fireState = 0;
-  digitalWrite(RELAY_3, LOW);
-  digitalWrite(RELAY_4, LOW);
+  digitalWrite(RELAY_4, HIGH);  
 }
 
 // purge sequence
@@ -196,6 +193,15 @@ void endPurge()
 {
   purgeState = 0;
   digitalWrite(RELAY_7, LOW);
+}
+
+void endFire()
+{
+  fireState = 0;
+  digitalWrite(RELAY_3, LOW);
+  digitalWrite(RELAY_4, LOW);
+  digitalWrite(RELAY_5, LOW);
+  digitalWrite(RELAY_6, LOW);
 }
 
 void loop() 
@@ -244,6 +250,7 @@ void loop()
       Serial.println(" SPS");
     }
     
+    // manual controls to valves
     if(command == 1) // relay 1 on
     {
       state1 = !state1;
@@ -280,25 +287,36 @@ void loop()
       digitalWrite(RELAY_7, state7);
     }
 
-
+    // turn on all solenoids to make sure they function
     if(command == 11)
     {
       startCheck();
       previousTime = millis();
     }
+
+    // turn on isolation valves and close vents to pressurize prop tanks
     if(command == 12)
     {
-      pressurize();
+      if(pressureState == 0)
+      {
+        pressurize();
+      }
+      else
+      {
+        depressurize();
+      }
     }
+
+    // purge lines aft propellant tanks
     if(command == 13)
     {
-      Serial.println("Purge");
       purge();
       previousTime = millis();
     }  
+
+    // main and isolation valves opened
     if(command == 14)
     {
-      Serial.println("Fire");
       fire(); 
       previousTime = millis();
     }  
@@ -318,10 +336,12 @@ void loop()
 
   if(fireState == 1 && elapsedTime >= fireTime)
   {
-    endFire();    
-    previousTime = millis();
+    endFire();
     purge();
+    previousTime = millis();
   }
+
+  elapsedTime = millis() - previousTime;
 
   if(purgeState == 1 && elapsedTime >= purgeTime)
   { 
