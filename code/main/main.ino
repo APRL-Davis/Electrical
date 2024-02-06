@@ -1,8 +1,16 @@
 #include "ADS1256.h"
+#include <NativeEthernet.h>
+#include <NativeEthernetUdp.h>
+#include <inttypes.h>
 
 /*======== ADC ========*/
 
-ADS1256 adc(2, 2500000, 9, 10, 2.5); //DRDY, SPI speed, SYNC(PDWN), CS, VREF(float).
+const int CS1 = 10;
+const int CS2 = 40;
+const int DRDY = 2;
+const int SYNC = 9;
+
+ADS1256 adc(DRDY, 2000000, SYNC, CS1, 2.5); //DRDY, SPI speed, SYNC(PDWN), CS, VREF(float).
 
 long rawConversion = 0; //24-bit raw value
 float voltageValue = 0; //human-readable floating point value
@@ -89,6 +97,74 @@ int registerToRead = 0; //Register number to be read
 int registerToWrite = 0; //Register number to be written
 int registerValueToWrite = 0; //Value to be written in the selected register
 
+// Enter a MAC address and IP address for your controller below.
+// The IP address will be dependent on your local network:
+byte mac[] = {
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
+};
+IPAddress ip(192, 168, 1, 177);
+
+unsigned int localPort = 8888;      // local port to listen on
+
+// An EthernetUDP instance to let us send and receive packets over UDP
+EthernetUDP Udp;
+
+#define SENSOR_READINGS_PER_PACKET 64
+size_t currentSensorReadingIndex = 0; // index of the current sensor reading
+size_t currentPacketID = 0; // index of the current packet
+
+// sensor data structures for transmission
+typedef struct sensorData{
+  time_t timestamp;
+  double sensorValue;
+  uint16_t sensorID;
+} sensorData;
+
+typedef struct dataPacket{
+  time_t timestamp;
+  size_t packetID;
+  sensorData sensorDataReadings[SENSOR_READINGS_PER_PACKET];
+} dataPacket;
+
+// buffers for receiving and sending data
+char packetBuffer[60];  // buffer to hold incoming packet,
+char ReplyBuffer[] = "acknowledged";        // a string to send back
+// one buffer for sending and one for sensing writing
+dataPacket outgoingDataPacketBuffers[12];
+uint8_t currentDataPacketBuffer;
+
+// Structures and settings for sensors
+enum sensorType {THERMOCOUPLE, PRESSURE, LOADCELL};
+enum sensorSerialType {sstSPI, sstI2C, sstUART};
+enum SPIPins {CSPin = 10, SCKPin = 13, MISOPin = 12, MOSIPin = 11};
+
+typedef struct sensorSettings {
+  uint32_t speed;
+  // SPI: pins[0] = CS, pins[1] = SCK, pins[2] = MISO, pins[3] = MOSI
+  // I2C: pins[0] = SDA, pins[1] = SCL
+  // UART: pins[0] = RX, pins[1] = TX
+  uint8_t pins[4];
+  sensorType type;
+  sensorSerialType serialType;
+  uint16_t sensorID;
+} sensorSettings;
+
+// setup sensors
+sensorSettings sensors[12] = {
+  {2000000, {CS1, 13, 12, 11}, THERMOCOUPLE, sstSPI, 1},
+  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 2},
+  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 3}
+  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 4}
+  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 5}
+  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 6}
+  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 7}
+  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 8}
+  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 9}
+  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 10}
+  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 11}
+  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 12}
+};
+
 void setup() 
 {
   Serial.begin(115200); //The value does not matter if you use an MCU with native USB
@@ -99,6 +175,23 @@ void setup()
   }
 
   Serial.println("Serial available");
+
+  // start the Ethernet
+  Ethernet.begin(mac, ip);
+
+  // Check for Ethernet hardware present
+  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+    Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+    while (true) {
+      delay(1); // do nothing, no point running without Ethernet hardware
+    }
+  }
+  if (Ethernet.linkStatus() == LinkOFF) {
+    Serial.println("Ethernet cable is not connected.");
+  }
+
+  // start UDP
+  Udp.begin(localPort);
 
   // set relay pinmodes
   pinMode(RELAY_1, OUTPUT);
