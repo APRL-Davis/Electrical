@@ -1,4 +1,6 @@
 #include "ADS1256.h"
+#include <iostream>
+#include <cmath>
 #include <NativeEthernet.h>
 #include <NativeEthernetUdp.h>
 #include <inttypes.h>
@@ -103,21 +105,22 @@ byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
 IPAddress ip(192, 168, 1, 177);
-
-unsigned int localPort = 8888;      // local port to listen on
+IPAddress remote(10,0,0,175);
+unsigned int localPort = 5000;      // local port to listen on
 
 // An EthernetUDP instance to let us send and receive packets over UDP
 EthernetUDP Udp;
 
-#define SENSOR_READINGS_PER_PACKET 64
+#define SENSOR_READINGS_PER_PACKET 5 // how many reading sets is in 1 udp packet at 50Hz transmission rate.
 size_t currentSensorReadingIndex = 0; // index of the current sensor reading
 size_t currentPacketID = 0; // index of the current packet
 
-// sensor data structures for transmission
+// sensor data structures for transmission. The struct holds a set of reading from 8 sensors with individual ID
+// There will be 5 of these structs in 1 UDP packet
 typedef struct sensorData{
   time_t timestamp;
-  double sensorValue;
-  uint16_t sensorID;
+  long sensorValue[8];
+  uint16_t sensorID[8];
 } sensorData;
 
 typedef struct dataPacket{
@@ -127,14 +130,13 @@ typedef struct dataPacket{
 } dataPacket;
 
 // buffers for receiving and sending data
-char packetBuffer[60];  // buffer to hold incoming packet,
-char ReplyBuffer[] = "acknowledged";        // a string to send back
+char packetBuffer[3];  // buffer to hold incoming packet,
+String replyMessage = "acknowledged";        // a string to send back
 // one buffer for sending and one for sensing writing
-dataPacket outgoingDataPacketBuffers[12];
-uint8_t currentDataPacketBuffer;
+dataPacket outgoingDataPacketBuffers;
 
 // Structures and settings for sensors
-enum sensorType {THERMOCOUPLE, PRESSURE, LOADCELL};
+enum sensorType {PRESSURE, THERMOCOUPLE, LOADCELL};
 enum sensorSerialType {sstSPI, sstI2C, sstUART};
 enum SPIPins {CSPin = 10, SCKPin = 13, MISOPin = 12, MOSIPin = 11};
 
@@ -151,7 +153,7 @@ typedef struct sensorSettings {
 
 // setup sensors
 sensorSettings sensors[12] = {
-  {2000000, {CS1, 13, 12, 11}, THERMOCOUPLE, sstSPI, 1},
+  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 1},
   {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 2},
   {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 3}
   {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 4}
@@ -159,11 +161,14 @@ sensorSettings sensors[12] = {
   {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 6}
   {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 7}
   {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 8}
-  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 9}
-  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 10}
-  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 11}
-  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 12}
 };
+
+uint8_t loopCounter = 0;
+
+// Timing settings
+IntervalTimer sensorTimer;
+volatile bool readyToReadSensors = false;
+const int sensorInterval = 50000; // in microseconds (f = 20 Hz => T = 50 ms = 50000 us)
 
 void setup() 
 {
@@ -221,6 +226,7 @@ void setup()
 
   //Freeze the display for 1 sec
   delay(1000);
+  recordingTime = millis();
 }
 
 void startCheck()
@@ -289,18 +295,44 @@ void endPurge()
   digitalWrite(RELAY_6, LOW);
 }
 
+void sendData()
+{
+  Udp.begin(remote, localPort);
+  Udp.write(outgoingDataPacketBuffers);
+  Udp.endPacket();
+}
+
 void loop() 
 {
   uint8_t command;
 
+  // filling individual readings into set of reading sensorData struct
   for (int i = 0; i < 8; i++)
   {
-    Serial.print(adc.convertToVoltage(adc.cycleSingle()),4); //print the converted single-ended results with 4 digits
-    // Serial.print(i);
-    Serial.print(" "); //space to separate sensors' values
-  }
-  Serial.println();//Printing a linebreak - this will put the next 8 conversions in a new line
+    sensorData.sensorValue[i] = trunc(adc.convertToVoltage(adc.cycleSingle()));
+    sensorData.sensorID[i] = i;
+  } 
+  sensorData.timestamp = millis() - recordingTime;
   
+  // filling data packet
+  outgoingDataPacketBuffers.sensorDataReadings[loopCounter] = sensorData;
+  outgoingDataPacketBuffers.packetID = 69;
+  outgoingDataPacketBuffers.timestamp = millis() - recordingTime;
+  
+  if(loopCounter == 4)
+  {
+    sendData();
+  }
+
+  if(loopCounter < 4)
+  {
+    loopCounter += 1;
+  }
+  else
+  {
+    loopCounter = 0;
+  }
+
   if (Serial.available() > 0)
   { 
     command = Serial.parseInt();  

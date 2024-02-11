@@ -221,7 +221,7 @@ void ADS1256::sendDirectCommand(uint8_t directCommand)
   SPI.endTransaction();
 }
 
-float ADS1256::convertToVoltage(int32_t rawData) //Converting the 24-bit data into a voltage value
+float ADS1256::convertToVoltage(int32_t rawData) //Converting the 24-bit data into a micro-voltage value
 {	
   // if (rawData >> 23 == 1) //if the 24th digit (sign) is 1, the number is negative
   // {
@@ -229,16 +229,10 @@ float ADS1256::convertToVoltage(int32_t rawData) //Converting the 24-bit data in
   //   //"mirroring" around zero
   // }  
   
-  float voltage = ((2 * _VREF) / 8388608) * rawData / (pow(2, _PGA)); //8388608 = 2^{23} - 1  
+  float voltage = ((2 * _VREF) / 8388608) * rawData / (pow(2, _PGA))*1000000; //8388608 = 2^{23} - 1  
   //REF: p23, Table 16.
 	
   return(voltage);
-}
-
-float ADS1256::convertPSI(float voltage, float FSR)
-{
-	float pressure = ((voltage-0.48)/(_VREF-0.48)) * FSR;
-	return(pressure);
 }
 
 void ADS1256::writeRegister(uint8_t registerAddress, uint8_t registerValueToWrite)
