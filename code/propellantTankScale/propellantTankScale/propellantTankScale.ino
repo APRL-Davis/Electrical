@@ -5,13 +5,17 @@ const int LOADCELL_DOUT_PIN = 18;
 const int LOADCELL_SCK_PIN = 19;
 
 HX711 lox;
+HX711 kero;
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
   lox.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  kero.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
   lox.set_offset(136001);
   lox.set_scale(25.744497);
+  kero.set_offset(136001);
+  kero.set_scale(25.744497);
   delay(3000);   
 }
 
@@ -26,7 +30,7 @@ void calibrate()
   while (Serial.available() == 0);
 
   Serial.println("Determine zero weight offset");
-  lox.tare(20);  // average 20 measurements.
+  kero.tare(20);  // average 20 measurements.
   uint32_t offset = lox.get_offset();
 
   Serial.print("OFFSET: ");
@@ -54,8 +58,8 @@ void calibrate()
   }
   Serial.print("WEIGHT: ");
   Serial.println(weight);
-  lox.calibrate_scale(weight, 20);
-  float scale = lox.get_scale();
+  kero.calibrate_scale(weight, 20);
+  float scale = kero.get_scale();
 
   Serial.print("SCALE:  ");
   Serial.println(scale, 6);
@@ -83,8 +87,9 @@ void loop() {
     calibrate();
   }
 
-  Serial.print("Weight: ");
-  Serial.println(lox.get_units(10)*.0022); //0.0022 is conversion factor from grams to lbs 
+  Serial.print(lox.get_units(10)*.0022); //0.0022 is conversion factor from grams to lbs
+  Serial.print(" ");
+  Serial.println(kero.get_units(10)*.0022); 
   delay(100);
 
 }
