@@ -99,28 +99,33 @@ int registerToRead = 0; //Register number to be read
 int registerToWrite = 0; //Register number to be written
 int registerValueToWrite = 0; //Value to be written in the selected register
 
+//==================Etherne==================//
+
+const int udpFreq = 25; // frequency to send packets to pc
+const int samplingRate = 2000; // total sampling rate for all sensors
+const int n_sensors = 8; // number of sensors
+
+// how many reading sets is in 1 udp packet at 25 Hz transmission rate.
+// packet size based on sampling rate, number of sensors, and udp transmission frequency
+const int SENSOR_READINGS_PER_PACKET = samplingRate/n_sensors/udpFreq; 
+
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
-IPAddress ip(192, 168, 1, 177);
+IPAddress ip(192, 168, 1, 177);     // remember to use cross-over ethernet cable if connect directly not through switch
 IPAddress remote(10,0,0,175);
 unsigned int localPort = 5000;      // local port to listen on
 
 // An EthernetUDP instance to let us send and receive packets over UDP
 EthernetUDP Udp;
 
-#define SENSOR_READINGS_PER_PACKET 5 // how many reading sets is in 1 udp packet at 50Hz transmission rate.
-size_t currentSensorReadingIndex = 0; // index of the current sensor reading
-size_t currentPacketID = 0; // index of the current packet
-
 // sensor data structures for transmission. The struct holds a set of reading from 8 sensors with individual ID
 // There will be 5 of these structs in 1 UDP packet
 typedef struct sensorData{
   time_t timestamp;
   long sensorValue[8];
-  uint16_t sensorID[8];
 } sensorData;
 
 typedef struct dataPacket{
@@ -130,45 +135,15 @@ typedef struct dataPacket{
 } dataPacket;
 
 // buffers for receiving and sending data
-char packetBuffer[3];  // buffer to hold incoming packet,
+char packetBuffer[8];  // buffer to hold incoming packet,
 String replyMessage = "acknowledged";        // a string to send back
 // one buffer for sending and one for sensing writing
 dataPacket outgoingDataPacketBuffers;
 
-// Structures and settings for sensors
-enum sensorType {PRESSURE, THERMOCOUPLE, LOADCELL};
-enum sensorSerialType {sstSPI, sstI2C, sstUART};
-enum SPIPins {CSPin = 10, SCKPin = 13, MISOPin = 12, MOSIPin = 11};
-
-typedef struct sensorSettings {
-  uint32_t speed;
-  // SPI: pins[0] = CS, pins[1] = SCK, pins[2] = MISO, pins[3] = MOSI
-  // I2C: pins[0] = SDA, pins[1] = SCL
-  // UART: pins[0] = RX, pins[1] = TX
-  uint8_t pins[4];
-  sensorType type;
-  sensorSerialType serialType;
-  uint16_t sensorID;
-} sensorSettings;
-
-// setup sensors
-sensorSettings sensors[12] = {
-  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 1},
-  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 2},
-  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 3}
-  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 4}
-  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 5}
-  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 6}
-  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 7}
-  {2000000, {CS1, 13, 12, 11}, PRESSURE, sstSPI, 8}
-};
-
 uint8_t loopCounter = 0;
 
 // Timing settings
-IntervalTimer sensorTimer;
 volatile bool readyToReadSensors = false;
-const int sensorInterval = 50000; // in microseconds (f = 20 Hz => T = 50 ms = 50000 us)
 
 void setup() 
 {
@@ -295,13 +270,6 @@ void endPurge()
   digitalWrite(RELAY_6, LOW);
 }
 
-void sendData()
-{
-  Udp.begin(remote, localPort);
-  Udp.write(outgoingDataPacketBuffers);
-  Udp.endPacket();
-}
-
 void loop() 
 {
   uint8_t command;
@@ -310,7 +278,6 @@ void loop()
   for (int i = 0; i < 8; i++)
   {
     sensorData.sensorValue[i] = trunc(adc.convertToVoltage(adc.cycleSingle()));
-    sensorData.sensorID[i] = i;
   } 
   sensorData.timestamp = millis() - recordingTime;
   
@@ -319,12 +286,14 @@ void loop()
   outgoingDataPacketBuffers.packetID = 69;
   outgoingDataPacketBuffers.timestamp = millis() - recordingTime;
   
-  if(loopCounter == 4)
+  if(loopCounter == SENSOR_READINGS_PER_PACKET - 1)
   {
-    sendData();
+    Udp.begin(remote, localPort);
+    Udp.write(outgoingDataPacketBuffers);
+    Udp.endPacket();
   }
 
-  if(loopCounter < 4)
+  if(loopCounter < SENSOR_READINGS_PER_PACKET)
   {
     loopCounter += 1;
   }
