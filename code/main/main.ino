@@ -4,6 +4,7 @@
 #include <NativeEthernet.h>
 #include <NativeEthernetUdp.h>
 #include <inttypes.h>
+#include <time.h>
 
 /*======== ADC ========*/
 
@@ -32,12 +33,15 @@ const int RELAY_3 = 5; // main k
 const int RELAY_4 = 6; // main l
 const int RELAY_5 = 7; // vent k
 const int RELAY_6 = 8; // vent l
+const int RELAY_7 = 14; //purge
 
-int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6};
+int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6,RELAY_7};
   
 unsigned long previousTime;
 unsigned long currentMillis;
 unsigned long elapsedTime;
+time_T timeNow;
+time_T duration = 0;
 
 // interrupt pins
 volatile bool fireState;
@@ -52,7 +56,7 @@ static bool state3 = 0;
 static bool state4 = 0;
 static bool state5 = 0;
 static bool state6 = 0;
-static bool calFlag = 0;
+static bool state7 = 0;
 
 const unsigned int fireTime = 5000;
 const unsigned int purgeTime = 3000;
@@ -100,23 +104,19 @@ int registerToWrite = 0; //Register number to be written
 int registerValueToWrite = 0; //Value to be written in the selected register
 
 //==================Etherne==================//
-
-const int udpFreq = 25; // frequency to send packets to pc
-const int samplingRate = 2000; // total sampling rate for all sensors
-const int n_sensors = 8; // number of sensors
-
 // how many reading sets is in 1 udp packet at 25 Hz transmission rate.
 // packet size based on sampling rate, number of sensors, and udp transmission frequency
-const int SENSOR_READINGS_PER_PACKET = samplingRate/n_sensors/udpFreq; 
+const int SENSOR_READINGS_PER_PACKET = 50; // fixed size. Send as soon as packet is filled.
+const int sensor_number = 8;
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
-IPAddress ip(192, 168, 1, 177);     // remember to use cross-over ethernet cable if connect directly not through switch
-IPAddress remote(10,0,0,175);
-unsigned int localPort = 5000;      // local port to listen on
+IPAddress ip(192, 168, 1, 200);     // MCU IP
+IPAddress remote(192,168,1,204);       // PC IP
+unsigned int localPort = 21;      // local port to listen on
 
 // An EthernetUDP instance to let us send and receive packets over UDP
 EthernetUDP Udp;
@@ -125,7 +125,7 @@ EthernetUDP Udp;
 // There will be 5 of these structs in 1 UDP packet
 typedef struct sensorData{
   time_t timestamp;
-  long sensorValue[8];
+  long sensorValue[sensor_number];
 } sensorData;
 
 typedef struct dataPacket{
@@ -135,15 +135,10 @@ typedef struct dataPacket{
 } dataPacket;
 
 // buffers for receiving and sending data
-char packetBuffer[8];  // buffer to hold incoming packet,
-String replyMessage = "acknowledged";        // a string to send back
-// one buffer for sending and one for sensing writing
-dataPacket outgoingDataPacketBuffers;
+char packetBuffer[8];  // buffer to hold incoming packet from PC
+dataPacket outgoingDataPacketBuffers; // buffer for going out to PC
 
 uint8_t loopCounter = 0;
-
-// Timing settings
-volatile bool readyToReadSensors = false;
 
 void setup() 
 {
@@ -180,6 +175,7 @@ void setup()
   pinMode(RELAY_4, OUTPUT);
   pinMode(RELAY_5, OUTPUT);
   pinMode(RELAY_6, OUTPUT);
+  pinMode(RELAY_7, OUTPUT);
 
   Serial.println("Relays initialized...");
 
@@ -199,9 +195,10 @@ void setup()
   Serial.println(adc.readRegister(DRATE_REG));
   delay(100);
 
+  time_t timeStart = now();
+
   //Freeze the display for 1 sec
   delay(1000);
-  recordingTime = millis();
 }
 
 void startCheck()
@@ -216,7 +213,7 @@ void startCheck()
 void endCheck()
 {
   checkState = 0;
-  for (int i=0; i<6; i++)
+  for (int i=0; i<7; i++)
   {
     digitalWrite(relayPins[i],LOW);
   }
@@ -255,36 +252,48 @@ void endFire()
 void purge()
 {
   purgeState = 1;
-  digitalWrite(RELAY_3, HIGH);
-  digitalWrite(RELAY_4, HIGH);
-  digitalWrite(RELAY_5, HIGH);
-  digitalWrite(RELAY_6, HIGH);
+  depressurize();
+  digitalWrite(RELAY_3, LOW);
+  digitalWrite(RELAY_4, LOW);
+  digitalWrite(RELAY_5, LOW);
+  digitalWrite(RELAY_6, LOW);
+  digitalWrite(RELAY_7, HIGH);
 }
 
 void endPurge()
 {
   purgeState = 0;
-  digitalWrite(RELAY_3, LOW);
-  digitalWrite(RELAY_4, LOW);
-  digitalWrite(RELAY_5, LOW);
-  digitalWrite(RELAY_6, LOW);
+  digitalWrite(RELAY_7, LOW);
 }
 
 void loop() 
 {
   uint8_t command;
 
+  packetSize = Udp.parsePacket(); // check to see if we receive any command
+
+  if(packetSize > 0)
+  {
+    Udp.read(packetBuffer, 8); // read the packet buffer to see if the pc sends anything
+    uint8_t command = atoi(packetBuffer); // convert the char array to command in int
+  }
+
   // filling individual readings into set of reading sensorData struct
-  for (int i = 0; i < 8; i++)
+  for (int i = 0; i < sensor_number; i++)
   {
     sensorData.sensorValue[i] = trunc(adc.convertToVoltage(adc.cycleSingle()));
+    // sensorData.sensorValue[i] = random(0,5);
   } 
-  sensorData.timestamp = millis() - recordingTime;
+  timeNow = now();
+  duration = timeNow - timeStart;
+  sensorData.timestamp = duration;
   
   // filling data packet
   outgoingDataPacketBuffers.sensorDataReadings[loopCounter] = sensorData;
   outgoingDataPacketBuffers.packetID = 69;
-  outgoingDataPacketBuffers.timestamp = millis() - recordingTime;
+  timeNow = now();
+  duration = timeNow - timeStart;
+  outgoingDataPacketBuffers.timestamp = duration;
   
   if(loopCounter == SENSOR_READINGS_PER_PACKET - 1)
   {
@@ -301,95 +310,62 @@ void loop()
   {
     loopCounter = 0;
   }
-
-  if (Serial.available() > 0)
-  { 
-    command = Serial.parseInt();  
-    if(command == 21)
-    {
-      adc.sendDirectCommand(SELFCAL);
-    }
-    if(command == 22)
-    {
-      //Variables to store and measure elapsed time and define the number of conversions
-      long numberOfSamples = 15000; //Number of conversions
-      long finishTime = 0;
-      long startTime = micros();
-
-      for (long i = 0; i < numberOfSamples; i++)
-      {
-        adc.readSingleContinuous();            
-        //Note: here we just perform the readings and we don't print the results
-      }
-
-      finishTime = micros() - startTime; //Calculate the elapsed time
-
-      adc.stopConversion();
-
-      //Printing the results
-      Serial.print("Total conversion time for 150k samples: ");
-      Serial.print(finishTime);
-      Serial.println(" us");
-
-      Serial.print("Sampling rate: ");
-      Serial.print(numberOfSamples * (1000000.0 / finishTime), 3);
-      Serial.println(" SPS");
-    }
     
-    if(command == 1) // relay 1 on
-    {
-      state1 = !state1;
-      digitalWrite(RELAY_1, state1);
-    }
-    if(command == 2) // relay 2 on
-    {
-      state2 = !state2;
-      digitalWrite(RELAY_2, state2);
-    }
-    if(command == 3) // relay 3 on
-    {
-      state3 = !state3;
-      digitalWrite(RELAY_3, state3);
-    }  
-    if(command == 4) // relay 4 on
-    {
-      state4 = !state4;
-      digitalWrite(RELAY_4, state4);
-    }  
-    if(command == 5) // relay 5 on
-    {
-      state5 = !state5;
-      digitalWrite(RELAY_5, state5);
-    }
-    if(command == 6) // relay 6 on
-    {
-      state6 = !state6;
-      digitalWrite(RELAY_6, state6);
-    }
-    if(command == 7)
-    {
-      startCheck();
-      previousTime = millis();
-    }
-    if(command == 8)
-    {
-      fire(); 
-      previousTime = millis();
-    }  
-    if(command == 9)
-    {
-      purge();
-      previousTime = millis();
-    }  
-    if(command == 10)
-    {
-      pressurize();
-    }
-    else
-    {
-      Serial.read();
-    }
-  }                           
+  if(command == 1) // relay 1 on
+  {
+    state1 = !state1;
+    digitalWrite(RELAY_1, state1);
+  }
+  if(command == 2) // relay 2 on
+  {
+    state2 = !state2;
+    digitalWrite(RELAY_2, state2);
+  }
+  if(command == 3) // relay 3 on
+  {
+    state3 = !state3;
+    digitalWrite(RELAY_3, state3);
+  }  
+  if(command == 4) // relay 4 on
+  {
+    state4 = !state4;
+    digitalWrite(RELAY_4, state4);
+  }  
+  if(command == 5) // relay 5 on
+  {
+    state5 = !state5;
+    digitalWrite(RELAY_5, state5);
+  }
+  if(command == 6) // relay 6 on
+  {
+    state6 = !state6;
+    digitalWrite(RELAY_6, state6);
+  }
+  if(command == 7)
+  {
+    state7 = !state7;
+    digitalWrite(RELAY_7, state7);
+  }
+
+  if(command == 11)
+  {
+    startCheck();
+    previousTime = millis();
+  }
+  if(command == 12)
+  {
+    pressurize();
+  }
+  if(command == 13)
+  {
+    purge();
+    previousTime = millis();
+  }  
+  if(command == 14)
+  {
+    fire(); 
+    previousTime = millis();
+  }                
 
   elapsedTime = millis() - previousTime;
   
@@ -398,6 +374,8 @@ void loop()
     endCheck();
     previousTime = millis();
   }
+  
+  elapsedTime = millis() - previousTime;
 
   if(fireState == 1 && elapsedTime >= fireTime)
   {
@@ -405,10 +383,14 @@ void loop()
     previousTime = millis();
     purge();
   }
+  
+  elapsedTime = millis() - previousTime;
 
   if(purgeState == 1 && elapsedTime >= purgeTime)
   { 
     endPurge();
     previousTime = millis();
   }
+
+  memset(packetBuffer, 0, 8);
 }
