@@ -103,10 +103,10 @@ public:
   const byte RESET_pin;
   const byte SYNC_pin;
   const byte CS_pin;
-  const byte SPI_speed;
+  const int SPI_speed;
 
 	//Constructor
-	ADS1256(const byte DRDY_pin, const byte SPI_speed, const byte SYNC_pin, const byte CS_pin, float VREF);
+	ADS1256(const byte DRDY_pin, const int SPI_speed, const byte SYNC_pin, const byte CS_pin, float VREF);
 	
 	//Initializing function
 	void InitializeADC();	

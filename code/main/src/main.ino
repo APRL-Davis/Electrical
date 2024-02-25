@@ -1,19 +1,18 @@
 #include "ADS1256.h"
 #include <iostream>
 #include <cmath>
-#include <NativeEthernet.h>
-#include <NativeEthernetUdp.h>
 #include <inttypes.h>
 #include <time.h>
+#include <QNEthernet.h>
 
 /*======== ADC ========*/
 
 const int CS1 = 10;
 const int CS2 = 40;
 const int DRDY = 2;
-const int SYNC = 9;
+const int PDWN = 9;
 
-ADS1256 adc(DRDY, 2000000, SYNC, CS1, 2.5); //DRDY, SPI speed, SYNC(PDWN), CS, VREF(float).
+ADS1256 adc(DRDY, 2000000, PDWN, CS1, 2.5); //DRDY, SPI speed, SYNC(PDWN), CS, VREF(float).
 
 long rawConversion = 0; //24-bit raw value
 float voltageValue = 0; //human-readable floating point value
@@ -40,8 +39,6 @@ int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6,RELAY_7};
 unsigned long previousTime;
 unsigned long currentMillis;
 unsigned long elapsedTime;
-time_T timeNow;
-time_T duration = 0;
 
 // interrupt pins
 volatile bool fireState;
@@ -111,34 +108,28 @@ const int sensor_number = 8;
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
-byte mac[] = {
-  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
-};
-IPAddress ip(192, 168, 1, 200);     // MCU IP
-IPAddress remote(192,168,1,204);       // PC IP
-unsigned int localPort = 21;      // local port to listen on
+IPAddress ip(10, 0, 0, 69);     // MCU IP
+IPAddress subnet(255,255,255,0); // set subnet mask
+IPAddress remote(10,0,0,51);    // PC IP
+unsigned int localPort = 1682;     // local port to listen on
 
 // An EthernetUDP instance to let us send and receive packets over UDP
+using namespace qindesign::network;
 EthernetUDP Udp;
 
-// sensor data structures for transmission. The struct holds a set of reading from 8 sensors with individual ID
-// There will be 5 of these structs in 1 UDP packet
-typedef struct sensorData{
-  time_t timestamp;
-  long sensorValue[sensor_number];
-} sensorData;
-
-typedef struct dataPacket{
-  time_t timestamp;
-  size_t packetID;
-  sensorData sensorDataReadings[SENSOR_READINGS_PER_PACKET];
-} dataPacket;
+int packetSize = 0;
 
 // buffers for receiving and sending data
-char packetBuffer[8];  // buffer to hold incoming packet from PC
-dataPacket outgoingDataPacketBuffers; // buffer for going out to PC
+//each reading is 4 byte
+//individual reading timestamp 4 byte
+//id 1 byte
+//timestamp 4 byte
+const int dataPacketSize = sensor_number*4*2+1+4; 
+uint8_t outgoingDataPacketBuffers[dataPacketSize]; // buffer for going out to PC
 
 uint8_t loopCounter = 0;
+uint32_t id = 0;
+
 
 void setup() 
 {
@@ -151,22 +142,21 @@ void setup()
 
   Serial.println("Serial available");
 
-  // start the Ethernet
-  Ethernet.begin(mac, ip);
+  memset(outgoingDataPacketBuffers, 0, 32);
 
   // Check for Ethernet hardware present
-  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-    Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
-    while (true) {
-      delay(1); // do nothing, no point running without Ethernet hardware
-    }
-  }
-  if (Ethernet.linkStatus() == LinkOFF) {
-    Serial.println("Ethernet cable is not connected.");
+  if (!Ethernet.begin()) {
+    printf("Failed to start Ethernet\r\n");
+    return;
   }
 
+  // Listen for link changes
+  Ethernet.onLinkState([](bool state) {
+    printf("[Ethernet] Link %s\r\n", state ? "ON" : "OFF");
+  });
+
   // start UDP
-  Udp.begin(localPort);
+  Udp.beginWithReuse(localPort);
 
   // set relay pinmodes
   pinMode(RELAY_1, OUTPUT);
@@ -195,8 +185,6 @@ void setup()
   Serial.println(adc.readRegister(DRATE_REG));
   delay(100);
 
-  time_t timeStart = now();
-
   //Freeze the display for 1 sec
   delay(1000);
 }
@@ -206,7 +194,7 @@ void startCheck()
   checkState = 1;
   for (int i=0; i<6; i++)
   {
-    digitalWrite(relayPins[i],HIGH);
+    digitalWriteFast(relayPins[i],HIGH);
   }
 }
 
@@ -215,37 +203,37 @@ void endCheck()
   checkState = 0;
   for (int i=0; i<7; i++)
   {
-    digitalWrite(relayPins[i],LOW);
+    digitalWriteFast(relayPins[i],LOW);
   }
 }
 
 void pressurize()
 { 
   pressureState = 1; 
-  digitalWrite(RELAY_1, HIGH);
-  digitalWrite(RELAY_2, HIGH); 
+  digitalWriteFast(RELAY_1, HIGH);
+  digitalWriteFast(RELAY_2, HIGH); 
 }
 
 void depressurize()
 {
   pressureState = 0;
-  digitalWrite(RELAY_1, LOW);
-  digitalWrite(RELAY_2, LOW); 
+  digitalWriteFast(RELAY_1, LOW);
+  digitalWriteFast(RELAY_2, LOW); 
 }
 
 // firing sequence
 void fire()
 {
   fireState = 1;
-  digitalWrite(RELAY_3, HIGH);
-  digitalWrite(RELAY_4, HIGH);
+  digitalWriteFast(RELAY_3, HIGH);
+  digitalWriteFast(RELAY_4, HIGH);
 }
 
 void endFire()
 {
   fireState = 0;
-  digitalWrite(RELAY_3, LOW);
-  digitalWrite(RELAY_4, LOW);
+  digitalWriteFast(RELAY_3, LOW);
+  digitalWriteFast(RELAY_4, LOW);
 }
 
 // purge sequence
@@ -253,115 +241,112 @@ void purge()
 {
   purgeState = 1;
   depressurize();
-  digitalWrite(RELAY_3, LOW);
-  digitalWrite(RELAY_4, LOW);
-  digitalWrite(RELAY_5, LOW);
-  digitalWrite(RELAY_6, LOW);
-  digitalWrite(RELAY_7, HIGH);
+  digitalWriteFast(RELAY_3, LOW);
+  digitalWriteFast(RELAY_4, LOW);
+  digitalWriteFast(RELAY_5, LOW);
+  digitalWriteFast(RELAY_6, LOW);
+  digitalWriteFast(RELAY_7, HIGH);
 }
 
 void endPurge()
 {
   purgeState = 0;
-  digitalWrite(RELAY_7, LOW);
+  digitalWriteFast(RELAY_7, LOW);
 }
 
 void loop() 
 {
-  uint8_t command;
+  uint8_t command[2];
 
   packetSize = Udp.parsePacket(); // check to see if we receive any command
 
   if(packetSize > 0)
   {
-    Udp.read(packetBuffer, 8); // read the packet buffer to see if the pc sends anything
-    uint8_t command = atoi(packetBuffer); // convert the char array to command in int
-  }
-
-  // filling individual readings into set of reading sensorData struct
-  for (int i = 0; i < sensor_number; i++)
-  {
-    sensorData.sensorValue[i] = trunc(adc.convertToVoltage(adc.cycleSingle()));
-    // sensorData.sensorValue[i] = random(0,5);
-  } 
-  timeNow = now();
-  duration = timeNow - timeStart;
-  sensorData.timestamp = duration;
-  
-  // filling data packet
-  outgoingDataPacketBuffers.sensorDataReadings[loopCounter] = sensorData;
-  outgoingDataPacketBuffers.packetID = 69;
-  timeNow = now();
-  duration = timeNow - timeStart;
-  outgoingDataPacketBuffers.timestamp = duration;
-  
-  if(loopCounter == SENSOR_READINGS_PER_PACKET - 1)
-  {
-    Udp.begin(remote, localPort);
-    Udp.write(outgoingDataPacketBuffers);
-    Udp.endPacket();
-  }
-
-  if(loopCounter < SENSOR_READINGS_PER_PACKET)
-  {
-    loopCounter += 1;
+    const uint8_t* packetBuffer = Udp.data(); 
+    command[0] = packetBuffer[0];
+    command[1] = packetBuffer[1];
   }
   else
   {
-    loopCounter = 0;
-  }
-    
-  if(command == 1) // relay 1 on
-  {
-    state1 = !state1;
-    digitalWrite(RELAY_1, state1);
-  }
-  if(command == 2) // relay 2 on
-  {
-    state2 = !state2;
-    digitalWrite(RELAY_2, state2);
-  }
-  if(command == 3) // relay 3 on
-  {
-    state3 = !state3;
-    digitalWrite(RELAY_3, state3);
-  }  
-  if(command == 4) // relay 4 on
-  {
-    state4 = !state4;
-    digitalWrite(RELAY_4, state4);
-  }  
-  if(command == 5) // relay 5 on
-  {
-    state5 = !state5;
-    digitalWrite(RELAY_5, state5);
-  }
-  if(command == 6) // relay 6 on
-  {
-    state6 = !state6;
-    digitalWrite(RELAY_6, state6);
-  }
-  if(command == 7)
-  {
-    state7 = !state7;
-    digitalWrite(RELAY_7, state7);
+    return;
   }
 
-  if(command == 11)
+  for (int j = 0; j<4; j++)
+  {
+    // outgoingDataPacketBuffers[startByte+j] = (adc.cycleSingle() >> (8*(3-j))) & 0xFF;
+    outgoingDataPacketBuffers[j] = (id >> (8*(3-j))) & 0xFF;
+  }
+
+  // filling individual readings into an array
+  for (int i = 0; i < sensor_number; i++)
+  {
+    uint8_t startByte = (i*4) + 4;
+    for (int j = 0; j<4; j++)
+    {
+      // outgoingDataPacketBuffers[startByte+j] = (adc.cycleSingle() >> (8*(3-j))) & 0xFF;
+      outgoingDataPacketBuffers[startByte+j] = (random(0,250) >> (8*(3-j))) & 0xFF;
+    }
+  }
+
+  for (int j = 0; j<4; j++)
+  {
+    // outgoingDataPacketBuffers[startByte+j] = (adc.cycleSingle() >> (8*(3-j))) & 0xFF;
+    outgoingDataPacketBuffers[j] = (millis() >> (8*(3-j))) & 0xFF;
+  }
+
+  delay(50);
+    
+  if(command[0] == 1) // relay 1 on
+  {
+    state1 = !state1;
+    digitalWriteFast(RELAY_1, state1);
+  }
+  if(command[0] == 2) // relay 2 on
+  {
+    state2 = !state2;
+    digitalWriteFast(RELAY_2, state2);
+  }
+  if(command[0] == 3) // relay 3 on
+  {
+    state3 = !state3;
+    digitalWriteFast(RELAY_3, state3);
+  }  
+  if(command[0] == 4) // relay 4 on
+  {
+    state4 = !state4;
+    digitalWriteFast(RELAY_4, state4);
+  }  
+  if(command[0] == 5) // relay 5 on
+  {
+    state5 = !state5;
+    digitalWriteFast(RELAY_5, state5);
+  }
+  if(command[0] == 6) // relay 6 on
+  {
+    state6 = !state6;
+    digitalWriteFast(RELAY_6, state6);
+  }
+  if(command[0] == 7)
+  {
+    state7 = !state7;
+    digitalWriteFast(RELAY_7, state7);
+  }
+
+  if(command[0] == 11)
   {
     startCheck();
     previousTime = millis();
   }
-  if(command == 12)
+  if(command[0] == 12)
   {
     pressurize();
   }
-  if(command == 13)
+  if(command[0] == 13)
   {
     purge();
     previousTime = millis();
   }  
-  if(command == 14)
+  if(command[0] == 14)
   {
     fire(); 
     previousTime = millis();
@@ -391,6 +376,4 @@ void loop()
     endPurge();
     previousTime = millis();
   }
-
-  memset(packetBuffer, 0, 8);
 }
