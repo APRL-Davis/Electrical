@@ -125,7 +125,7 @@ int packetSize = 0;
 //id 1 byte
 //timestamp 4 byte
 const int dataPacketSize = sensor_number*4*2+1+4; 
-uint8_t outgoingDataPacketBuffers[dataPacketSize]; // buffer for going out to PC
+uint8_t outgoingDataPacketBuffers[40]; // buffer for going out to PC
 
 uint8_t loopCounter = 0;
 uint32_t id = 0;
@@ -142,7 +142,7 @@ void setup()
 
   Serial.println("Serial available");
 
-  memset(outgoingDataPacketBuffers, 0, 32);
+  memset(outgoingDataPacketBuffers, 0, 40);
 
   // Check for Ethernet hardware present
   if (!Ethernet.begin()) {
@@ -267,14 +267,11 @@ void loop()
     command[1] = packetBuffer[1];
   }
   else
-  {
-    return;
-  }
+  {}
 
-  for (int j = 0; j<4; j++)
+  for (int i = 0; i<4; i++)
   {
-    // outgoingDataPacketBuffers[startByte+j] = (adc.cycleSingle() >> (8*(3-j))) & 0xFF;
-    outgoingDataPacketBuffers[j] = (id >> (8*(3-j))) & 0xFF;
+    outgoingDataPacketBuffers[36+i] = (millis() >> (8*(3-i))) & 0xFF;
   }
 
   // filling individual readings into an array
@@ -290,11 +287,10 @@ void loop()
 
   for (int j = 0; j<4; j++)
   {
-    // outgoingDataPacketBuffers[startByte+j] = (adc.cycleSingle() >> (8*(3-j))) & 0xFF;
-    outgoingDataPacketBuffers[j] = (millis() >> (8*(3-j))) & 0xFF;
+    outgoingDataPacketBuffers[j] = (id >> (8*(3-j))) & 0xFF;
   }
 
-  delay(50);
+  Udp.send(remote,localPort,outgoingDataPacketBuffers,40);
     
   if(command[0] == 1) // relay 1 on
   {
