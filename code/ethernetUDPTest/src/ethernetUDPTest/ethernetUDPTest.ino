@@ -9,7 +9,7 @@ EthernetUDP udp;
 
 uint8_t tempValue;
 
-//==================Etherne==================//
+//==================Ethernet==================//
 // how many reading sets is in 1 udp packet at 25 Hz transmission rate.
 // packet size based on sampling rate, number of sensors, and udp transmission frequency
 const int SENSOR_READINGS_PER_PACKET = 50; // fixed size. Send as soon as packet is filled.
@@ -18,7 +18,7 @@ const int sensorNumber = 8;
 // The IP address will be dependent on your local network:
 IPAddress ip(10, 0, 0, 69);     // MCU IP
 IPAddress subnet(255,255,255,0); // set subnet mask
-IPAddress remote(10,0,0,175);    // PC IP
+IPAddress remote(10,0,0,51);    // PC IP
 unsigned int localPort = 1682;     // local port to listen on
 
 //outgoing packet
@@ -48,6 +48,11 @@ void setup() {
     return;
   }
 
+  // Listen for link changes
+  Ethernet.onLinkState([](bool state) {
+    printf("[Ethernet] Link %s\r\n", state ? "ON" : "OFF");
+  });
+
   // start udp
   udp.beginWithReuse(localPort);
 }
@@ -60,8 +65,8 @@ void loop() {
     packetOut[i] = tempValue;        
   }
 
-  udp.send(remote, localPort, packetOut, 9); 
+  udp.send(remote, localPort, packetOut,32); 
 
-  delay(5000);
+  delay(20);
 
 }
