@@ -36,13 +36,14 @@
  *
  */
 
+#include <Arduino.h>
+#include <SPI.h>
 #include "hal.h"
 #include "ads124s08.h"
 
 // SPI configuration
 #define SPI_SPEED 2000000
 #define SPI_WORD_SIZE 8
-SPI_Handle g_SPIhandle;
 
 
 
@@ -103,17 +104,13 @@ void setDRDYinterruptStatus(const bool value)
  */
 void enableDRDYinterrupt(const bool intEnable)
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation */
+    
     if(intEnable)
     {
         flag_nDRDY_INTERRUPT = false;
-        GPIO_clearInt(DRDY_CONST);
-        SysCtlDelay(10);
-        GPIO_enableInt(DRDY_CONST);
+        attachInterrupt(digitalPinToInterrupt(nDRDY_PIN), GPIO_DRDY_IRQHandler, FALLING);
     }
-    else GPIO_disableInt(DRDY_CONST);
+    else detachInterrupt(digitalPinToInterrupt(2));
 
 }
 
@@ -134,12 +131,7 @@ void enableDRDYinterrupt(const bool intEnable)
  */
 void delay_ms(const uint32_t delay_time_ms)
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    // Be careful of overflow
-    uint32_t cycles_per_loop = 3;
-    cycles_per_loop = getSysClockHz() / (cycles_per_loop * 1000u);
-    MAP_SysCtlDelay( delay_time_ms * cycles_per_loop);
+    delay(delay_time_ms);
 }
 
 /************************************************************************************//**
@@ -153,13 +145,7 @@ void delay_ms(const uint32_t delay_time_ms)
  */
 void delay_us(const uint32_t delay_time_us)
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    uint32_t cycles_per_loop = 3;
-
-    // Be careful of overflow
-    cycles_per_loop = getSysClockHz() / (cycles_per_loop * 1000000u);
-    MAP_SysCtlDelay( delay_time_us * cycles_per_loop);
+    delayMicroseconds(delay_time_us);
 }
 
 //****************************************************************************
@@ -178,14 +164,11 @@ void delay_us(const uint32_t delay_time_us)
  */
 void InitGPIO(void)
 {
-    /* --- INSERT YOUR CODE HERE --- */
+    pinMode(nDRDY_PIN, INPUT);
 
-    /* The following code is based on a TI Drivers implementation */
-
-    /* Call driver init functions */
-
-    /* Set the interrupt callback function */
-    GPIO_setCallback(DRDY_CONST,GPIO_DRDY_IRQHandler );
+    pinMode(nCS_PIN, OUTPUT);
+    pinMode(nRESET_PIN, OUTPUT);
+    pinMode(START_PIN, OUTPUT);
 }
 
 //*****************************************************************************
@@ -230,20 +213,7 @@ void GPIO_DRDY_IRQHandler(uint_least8_t index)
  */
 void InitSPI(void)
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation for GPIO functions */
-
-    /*
-     * NOTE: The ADS124S08 operates in SPI mode 1 (CPOL = 0, CPHA = 1).
-     */
-
-    SPI_Params      spiParams;
-    SPI_Params_init( &spiParams );
-    spiParams.dataSize    = SPI_WORD_SIZE;
-    spiParams.frameFormat = SPI_POL0_PHA1;
-    spiParams.bitRate     = SPI_SPEED;
-    g_SPIhandle = SPI_open( CONFIG_SPI_0, &spiParams );
+    SPI.begin();
 
     return;
 }
@@ -269,33 +239,13 @@ void InitSPI(void)
  *     return( true );
  * @endcode
  */
-bool InitADCPeripherals( SPI_Handle *spiHdl )
+bool InitADCPeripherals( void )
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation */
-
-
-    SPI_Params      spiParams;
-    bool            status;
-
-    SPI_Params_init( &spiParams );
-    spiParams.dataSize    = SPI_WORD_SIZE;
-    spiParams.frameFormat = SPI_POL0_PHA1;
-    spiParams.bitRate     = SPI_SPEED;
-
-
-    *spiHdl = SPI_open( CONFIG_SPI_0, &spiParams );
-    if (*spiHdl == NULL) {
-        // Display error initializing host SPI
-        while (1);
-    }
-    else {
-        // Display host SPI initialized successfully
-    }
+    bool status;
+    SPI.begin();
 
     // Start up the ADC
-    status = adcStartupRoutine( *spiHdl );
+    status = adcStartupRoutine();
 
     return( status );
 }
@@ -310,10 +260,7 @@ bool InitADCPeripherals( SPI_Handle *spiHdl )
  */
 bool getRESET( void )
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation */
-    return (bool) GPIO_read( RESET );
+    return (bool) digitalRead(nRESET_PIN);
 }
 
 /************************************************************************************//**
@@ -328,10 +275,7 @@ bool getRESET( void )
 
 void setRESET( bool state )
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation */
-    GPIO_write( RESET, (unsigned int) state );
+    digitalWrite( nRESET_PIN, (uint8_t) state );
     return;
 }
 
@@ -344,15 +288,12 @@ void setRESET( bool state )
  */
 void toggleRESET( void )
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation */
-    GPIO_write( RESET, (unsigned int) LOW );
+    digitalWrite( nRESET_PIN, LOW );
 
     // Minimum nRESET width: 4 tCLKs = 4 * 1/4.096MHz =
     delay_us( DELAY_4TCLK );
 
-    GPIO_write( RESET, (unsigned int) HIGH );
+    digitalWrite( nRESET_PIN, HIGH );
     return;
 
 }
