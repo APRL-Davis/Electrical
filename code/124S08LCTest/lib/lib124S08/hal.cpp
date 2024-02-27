@@ -1,9 +1,9 @@
 /**
  * @file hal.c
  *
- * @brief Example of a hardware abstraction layer
- * @warning This software utilizes TI Drivers
+ * @brief Hardware abstraction layer for Teensy 4.1 with Arduino
  *
+ * Original code source from TI
  * @copyright Copyright (C) 2022 Texas Instruments Incorporated - http://www.ti.com/
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@ static volatile bool flag_nDRDY_INTERRUPT = false;
 //****************************************************************************
 void InitGPIO(void);
 void InitSPI(void);
-void GPIO_DRDY_IRQHandler(uint_least8_t index);
+void GPIO_DRDY_IRQHandler(void);
 
 //****************************************************************************
 //
@@ -186,7 +186,7 @@ void InitGPIO(void)
  *
  * @return None
  */
-void GPIO_DRDY_IRQHandler(uint_least8_t index)
+void GPIO_DRDY_IRQHandler( void )
 {
     /* --- INSERT YOUR CODE HERE --- */
 
@@ -527,7 +527,7 @@ bool waitForDRDYHtoL( uint32_t timeout_ms )
  *
  * @return     None
  */
-void spiSendReceiveArrays( uint8_t DataTx[], uint8_t DataRx[], uint8_t byteLength )
+void spiSendReceiveArrays( uint8_t DataTx[], uint8_t *DataRx, uint8_t byteLength )
 {
     /*
      *  This function sends and receives multiple bytes over the SPI.
@@ -556,7 +556,7 @@ void spiSendReceiveArrays( uint8_t DataTx[], uint8_t DataRx[], uint8_t byteLengt
     }
 
    setCS( HIGH );
-   return( DataRx );
+   return;
 }
 
 

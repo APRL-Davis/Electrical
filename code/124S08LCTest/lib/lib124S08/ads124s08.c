@@ -2,8 +2,9 @@
  * 
  * @file ads124s08.c
  *
- * @brief  ADS124S08 Low level routines using TI Drivers
+ * @brief  ADS124S08 Low level routines in C, implemented for APRL
  * 
+ * Original code source from TI
  * @copyright Copyright (C) 2019-22 Texas Instruments Incorporated - http://www.ti.com/
  * All rights reserved. 
  * 
@@ -43,7 +44,7 @@
 
 #include "hal.h"
 #include "ADS124S08.h"
-#include "crc.h"
+#include "crc/crc.h"
 
 //****************************************************************************
 //
@@ -85,7 +86,7 @@ uint8_t getRegisterValue( uint8_t address )
  * @return      true for successful initialization
  *              false for unsuccessful initialization
  */
- bool adcStartupRoutine( SPI_Handle spiHdl )
+ bool adcStartupRoutine( void )
 {
     uint8_t initRegisterMap[NUM_REGISTERS] = { 0 };
     uint8_t status, i;
@@ -99,7 +100,7 @@ uint8_t getRegisterValue( uint8_t address )
     // Must wait 4096 tCLK after reset
     delay_us( DELAY_4096TCLK );
 
-    status = readSingleRegister( spiHdl, REG_ADDR_STATUS );
+    status = readSingleRegister( REG_ADDR_STATUS );
     if ( (status & ADS_nRDY_MASK) ) {
         return( false );                      // Device not ready
     }
@@ -108,7 +109,7 @@ uint8_t getRegisterValue( uint8_t address )
     restoreRegisterDefaults();
 
     // Configure initial device register settings here
-    writeSingleRegister( spiHdl, REG_ADDR_STATUS, 0x00 );    // Reset POR event
+    writeSingleRegister( REG_ADDR_STATUS, 0x00 );    // Reset POR event
 
     // Create temporary array based on desired configuration
     for( i = 0 ; i < NUM_REGISTERS ; i++) {
@@ -116,7 +117,7 @@ uint8_t getRegisterValue( uint8_t address )
     }
 
     // Read back all registers, except for status register.
-    readMultipleRegisters( spiHdl, REG_ADDR_ID, NUM_REGISTERS );
+    readMultipleRegisters( REG_ADDR_ID, NUM_REGISTERS );
     for ( i = REG_ADDR_STATUS; i < REG_ADDR_SYS - REG_ADDR_STATUS + 1; i++ ) {
         if ( i == REG_ADDR_STATUS )
             continue;
@@ -136,7 +137,7 @@ uint8_t getRegisterValue( uint8_t address )
  *
  * @return 		8-bit register contents
  */
-uint8_t readSingleRegister( SPI_Handle spiHdl, uint8_t address )
+uint8_t readSingleRegister( uint8_t address )
 {
     /* Initialize arrays */
     uint8_t DataTx[COMMAND_LENGTH + 1] = { OPCODE_RREG | (address & OPCODE_RWREG_MASK), 0, 0 };
@@ -147,7 +148,7 @@ uint8_t readSingleRegister( SPI_Handle spiHdl, uint8_t address )
     assert( address < NUM_REGISTERS );
 
     /* Build TX array and send it */
-    spiSendReceiveArrays( spiHdl, DataTx, DataRx, COMMAND_LENGTH + 1);
+    spiSendReceiveArrays( DataTx, DataRx, COMMAND_LENGTH + 1);
 
     /* Update register array and return read result*/
     registerMap[address] = DataRx[COMMAND_LENGTH];
@@ -166,7 +167,7 @@ uint8_t readSingleRegister( SPI_Handle spiHdl, uint8_t address )
  *
  * @return 		None
  */
-void readMultipleRegisters( SPI_Handle spiHdl, uint8_t startAddress, uint8_t count )
+void readMultipleRegisters( uint8_t startAddress, uint8_t count )
 {
     uint8_t DataTx[COMMAND_LENGTH + NUM_REGISTERS] = { 0 };
     uint8_t DataRx[COMMAND_LENGTH + NUM_REGISTERS] = { 0 };
@@ -179,7 +180,7 @@ void readMultipleRegisters( SPI_Handle spiHdl, uint8_t startAddress, uint8_t cou
     DataTx[0] = OPCODE_RREG | (startAddress & OPCODE_RWREG_MASK);
     DataTx[1] = count - 1;
 
-    spiSendReceiveArrays( spiHdl, DataTx, DataRx, COMMAND_LENGTH + count);
+    spiSendReceiveArrays( DataTx, DataRx, COMMAND_LENGTH + count);
 
     for ( i = 0; i < count; i++ ) {
         // Store received register data into internal registerMap copy
@@ -198,7 +199,7 @@ void readMultipleRegisters( SPI_Handle spiHdl, uint8_t startAddress, uint8_t cou
  *
  * @return 		None
  */
-void writeSingleRegister( SPI_Handle spiHdl, uint8_t address, uint8_t data )
+void writeSingleRegister( uint8_t address, uint8_t data )
 {
     /* Initialize arrays */
     uint8_t DataTx[COMMAND_LENGTH + 1] = { OPCODE_WREG | (address & OPCODE_RWREG_MASK), 0, data};
@@ -208,7 +209,7 @@ void writeSingleRegister( SPI_Handle spiHdl, uint8_t address, uint8_t data )
     assert( address < NUM_REGISTERS );
 
     /* Build TX array and send it */
-    spiSendReceiveArrays( spiHdl, DataTx, DataRx, COMMAND_LENGTH + 1 );
+    spiSendReceiveArrays( DataTx, DataRx, COMMAND_LENGTH + 1 );
 
     /* Update register array */
     registerMap[address] = DataTx[COMMAND_LENGTH];
@@ -229,7 +230,7 @@ void writeSingleRegister( SPI_Handle spiHdl, uint8_t address, uint8_t data )
  *
  * @return 		None
  */
-void writeMultipleRegisters( SPI_Handle spiHdl, uint8_t startAddress, uint8_t count, uint8_t regData[] )
+void writeMultipleRegisters( uint8_t startAddress, uint8_t count, uint8_t regData[] )
 {
     uint8_t DataTx[COMMAND_LENGTH + NUM_REGISTERS] = { 0 };
     uint8_t DataRx[COMMAND_LENGTH + NUM_REGISTERS] = { 0 };
@@ -249,7 +250,7 @@ void writeMultipleRegisters( SPI_Handle spiHdl, uint8_t startAddress, uint8_t co
     }
 
     // SPI communication
-    spiSendReceiveArrays( spiHdl, DataTx, DataRx, COMMAND_LENGTH + count );
+    spiSendReceiveArrays( DataTx, DataRx, COMMAND_LENGTH + count );
 }
 
 /************************************************************************************//**
@@ -262,14 +263,14 @@ void writeMultipleRegisters( SPI_Handle spiHdl, uint8_t startAddress, uint8_t co
  *
  * @return 		None
  */
-void sendCommand(SPI_Handle spiHdl, uint8_t op_code)
+void sendCommand(uint8_t op_code)
 {
     /* Assert if this function is used to send any of the following commands */
     assert( OPCODE_RREG         != op_code );    /* Use "readSingleRegister()"  or "readMultipleRegisters()"  */
     assert( OPCODE_WREG         != op_code );    /* Use "writeSingleRegister()" or "writeMultipleRegisters()" */
 
     /* SPI communication */
-    spiSendReceiveByte( spiHdl, op_code );
+    spiSendReceiveByte( op_code );
 
     // Check for RESET command
     if (OPCODE_RESET == op_code)
@@ -292,16 +293,16 @@ void sendCommand(SPI_Handle spiHdl, uint8_t op_code)
  *
  * @return 		None
  */
-void startConversions( SPI_Handle spiHdl )
+void startConversions( void )
 {
 	// Wakeup device if in POWERDOWN
-    sendWakeup( spiHdl );
+    sendWakeup();
 
 #ifdef START_PIN_CONTROLLED     // If defined in ADS124S08.h
      /* Begin continuous conversions */
     setSTART( HIGH );
 #else
-    sendSTART( spiHdl );
+    sendSTART();
 #endif    
 }
 
@@ -314,13 +315,13 @@ void startConversions( SPI_Handle spiHdl )
  *
  * @return      None
  */
-void stopConversions( SPI_Handle spiHdl )
+void stopConversions( void )
 {
      /* Stop continuous conversions */
 #ifdef START_PIN_CONTROLLED     // If defined in ADS124S08.h
     setSTART( LOW );
 #else
-    sendSTOP( spiHdl );
+    sendSTOP();
 #endif    
 }
 
@@ -333,13 +334,13 @@ void stopConversions( SPI_Handle spiHdl )
  *
  * @return      None
  */
-void resetADC( SPI_Handle spiHdl )
+void resetADC( void )
 {
      /* Reset ADC */
 #ifdef RESET_PIN_CONTROLLED     // If defined in ADS124S08.h
     toggleRESET();
 #else
-    sendRESET( spiHdl );
+    sendRESET();
 #endif
     // Must wait 4096 tCLK after reset
     delay_us( DELAY_4096TCLK );
@@ -361,7 +362,7 @@ void resetADC( SPI_Handle spiHdl )
  * 
  * @return 		32-bit sign-extended conversion result (data only)
  */
-int32_t readConvertedData( SPI_Handle spiHdl, uint8_t status[], readMode mode )
+int32_t readConvertedData( uint8_t status[], readMode mode )
 {
     uint8_t DataTx[RDATA_COMMAND_LENGTH + STATUS_LENGTH + DATA_LENGTH + CRC_LENGTH] = { 0 };    // Initialize all array elements to 0
     uint8_t DataRx[RDATA_COMMAND_LENGTH + STATUS_LENGTH + DATA_LENGTH + CRC_LENGTH] = { 0 };    
@@ -400,7 +401,7 @@ int32_t readConvertedData( SPI_Handle spiHdl, uint8_t status[], readMode mode )
         byteLength   += 1;
         dataPosition += 1;
 	}
-    spiSendReceiveArrays( spiHdl, DataTx, DataRx, byteLength );
+    spiSendReceiveArrays( DataTx, DataRx, byteLength );
 
     // Parse returned SPI data
     /* Check if STATUS byte is enabled and if we have a valid "status" memory pointer */

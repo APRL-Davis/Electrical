@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "ads124s08.h"
 
 void setup() {
   Serial.begin(115200);

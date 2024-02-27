@@ -1,9 +1,9 @@
 /**
  * @file hal.h
  *
- * @brief Example of a hardware abstraction layer
- * @warning This software utilizes TI Drivers
+ * @brief Hardware abstraction layer for Teensy 4.1 with Arduino
  *
+ * Original code source from TI
  * @copyright Copyright (C) 2022 Texas Instruments Incorporated - http://www.ti.com/
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -111,11 +111,6 @@ void enableDRDYinterrupt(const bool intEnable);
 // Macros
 //
 //*****************************************************************************
-/** Alias used for setting GPIOs pins to the logic "high" state */
-#define HIGH                ((bool) true)
-
-/** Alias used for setting GPIOs pins to the logic "low" state */
-#define LOW                 ((bool) false)
 
 
 
