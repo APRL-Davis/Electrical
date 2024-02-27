@@ -44,7 +44,7 @@
 #include <string.h>
 #include "hal.h"
 
-//extern SPI_Handle spiHdl;
+//extern void;
 /********************************************************************************//**
  * 
  * @name Constants for ADS124S08 
@@ -566,16 +566,16 @@ extern bool converting;
 //
 //*****************************************************************************
 
-bool 	adcStartupRoutine( SPI_Handle spiHdl );
-int32_t readConvertedData( SPI_Handle spiHdl, uint8_t status[], readMode mode );
-uint8_t readSingleRegister( SPI_Handle spiHdl, uint8_t address );
-void    readMultipleRegisters( SPI_Handle spiHdl, uint8_t startAddress, uint8_t count );
-void    sendCommand( SPI_Handle spiHdl, uint8_t op_code );
-void    startConversions( SPI_Handle spiHdl );
-void    stopConversions( SPI_Handle spiHdl );
-void    writeSingleRegister( SPI_Handle spiHdl, uint8_t address, uint8_t data );
-void    writeMultipleRegisters( SPI_Handle spiHdl, uint8_t startAddress, uint8_t count, uint8_t regData[] );
-void    resetADC( SPI_Handle spiHdl );
+bool 	adcStartupRoutine( void );
+int32_t readConvertedData( uint8_t status[], readMode mode );
+uint8_t readSingleRegister( uint8_t address );
+void    readMultipleRegisters( uint8_t startAddress, uint8_t count );
+void    sendCommand( uint8_t op_code );
+void    startConversions( void );
+void    stopConversions( void );
+void    writeSingleRegister( uint8_t address, uint8_t data );
+void    writeMultipleRegisters( uint8_t startAddress, uint8_t count, uint8_t regData[] );
+void    resetADC( void );
 
 // Internal variable getters
 uint8_t getRegisterValue( uint8_t address );

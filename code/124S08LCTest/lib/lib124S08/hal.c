@@ -307,10 +307,7 @@ void toggleRESET( void )
  */
 bool getSTART( void )
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation */
-    return (bool) GPIO_read( START );
+    return (bool) digitalRead( START_PIN );
 }
 
 /************************************************************************************//**
@@ -324,10 +321,7 @@ bool getSTART( void )
  */
 void setSTART( bool state )
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation */
-    GPIO_write( START, (unsigned int) state );
+    digitalWrite( START_PIN, (uint8_t) state );
 
     // Minimum START width: 4 tCLKs
     delay_us( DELAY_4TCLK );
@@ -345,26 +339,23 @@ void setSTART( bool state )
  */
 void toggleSTART( bool direction )
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation */
     if ( direction )
     {
-        GPIO_write( START, (unsigned int) LOW );
+        digitalWrite( START_PIN, LOW );
 
         // Minimum START width: 4 tCLKs
         delay_us( DELAY_4TCLK );
 
-        GPIO_write( START, (unsigned int) HIGH );
+        digitalWrite( START_PIN, HIGH );
     }
     else
     {
-        GPIO_write( START, (unsigned int) HIGH );
+        digitalWrite( START_PIN, HIGH );
 
         // Minimum START width: 4 tCLKs
         delay_us( DELAY_4TCLK );
 
-        GPIO_write( START, (unsigned int) LOW );
+        digitalWrite( START_PIN, LOW );
     }
     return;
 }
@@ -378,12 +369,12 @@ void toggleSTART( bool direction )
  *
  * @return      None
  */
-void sendSTART( SPI_Handle spiHdl )
+void sendSTART( void )
 {
     uint8_t dataTx = OPCODE_START;
 
     // Send START Command
-    sendCommand( spiHdl, dataTx );
+    sendCommand( dataTx );
     return;
 }
 
@@ -396,12 +387,12 @@ void sendSTART( SPI_Handle spiHdl )
  *
  * @return      None
  */
-void sendSTOP( SPI_Handle spiHdl )
+void sendSTOP( void )
 {
     uint8_t dataTx = OPCODE_STOP;
 
     // Send STOP Command
-    sendCommand( spiHdl, dataTx );
+    sendCommand( dataTx );
     return;
 }
 
@@ -414,12 +405,12 @@ void sendSTOP( SPI_Handle spiHdl )
  *
  * @return      None
  */
-void sendRESET( SPI_Handle spiHdl )
+void sendRESET( void )
 {
     uint8_t dataTx = OPCODE_RESET;
 
     // Send RESET command
-    sendCommand( spiHdl, dataTx );
+    sendCommand( dataTx );
     return;
 }
 
@@ -432,12 +423,12 @@ void sendRESET( SPI_Handle spiHdl )
  *
  * @return      None
  */
-void sendWakeup( SPI_Handle spiHdl )
+void sendWakeup( void )
 {
     uint8_t dataTx = OPCODE_WAKEUP;
 
     // Wakeup device
-    sendCommand( spiHdl, dataTx );
+    sendCommand( dataTx );
     return;
 }
 
@@ -450,12 +441,12 @@ void sendWakeup( SPI_Handle spiHdl )
  *
  * @return      None
  */
-void sendPowerdown( SPI_Handle spiHdl )
+void sendPowerdown( void )
 {
     uint8_t dataTx = OPCODE_POWERDOWN;
 
     // Power down device
-    sendCommand( spiHdl, dataTx );
+    sendCommand( dataTx );
     return;
 }
 
@@ -470,10 +461,7 @@ void sendPowerdown( SPI_Handle spiHdl )
  */
 void setCS( bool state )
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation */
-    GPIO_write( CS, (unsigned int) state );
+    digitalWrite( nCS_PIN, (uint8_t) state );
     return;
 }
 
@@ -486,10 +474,7 @@ void setCS( bool state )
  */
 bool getCS( void )
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation */
-    return (bool) GPIO_read( CS );
+    return (bool) digitalRead( nCS_PIN );
 }
 
 /************************************************************************************//**
@@ -542,15 +527,8 @@ bool waitForDRDYHtoL( uint32_t timeout_ms )
  *
  * @return     None
  */
-void spiSendReceiveArrays( SPI_Handle spiHdl, uint8_t DataTx[], uint8_t DataRx[], uint8_t byteLength )
+void spiSendReceiveArrays( uint8_t DataTx[], uint8_t DataRx[], uint8_t byteLength )
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation */
-
-    SPI_Transaction spiTransaction;
-    bool            transferOK;
-
     /*
      *  This function sends and receives multiple bytes over the SPI.
      *
@@ -564,24 +542,21 @@ void spiSendReceiveArrays( SPI_Handle spiHdl, uint8_t DataTx[], uint8_t DataRx[]
      *
      */
 
-    spiTransaction.txBuf = DataTx;
-    spiTransaction.rxBuf = DataRx;
-
-
+    
     setCS( LOW );
 
     /* Send or Receive Data */
     if ( byteLength > 0 ) {
-        spiTransaction.count = byteLength;
-        transferOK = SPI_transfer( spiHdl, &spiTransaction);
-        if (transferOK == NULL) {
-            // Display and handle error with SPI data transfer
-            while (1);
+        SPI.beginTransaction(SPISettings(SPI_SPEED, MSBFIRST, SPI_MODE1));
+        for (uint8_t i = 0; i < byteLength; i++)
+        {
+            DataRx[i] = SPI.transfer(DataTx[i]);
         }
+        SPI.endTransaction(); 
     }
 
    setCS( HIGH );
-   return;
+   return( DataRx );
 }
 
 
@@ -595,30 +570,17 @@ void spiSendReceiveArrays( SPI_Handle spiHdl, uint8_t DataTx[], uint8_t DataRx[]
  *
  * @return     SPI response byte
  */
-uint8_t spiSendReceiveByte( SPI_Handle spiHdl, uint8_t dataTx )
+uint8_t spiSendReceiveByte( uint8_t dataTx )
 {
-    /* --- INSERT YOUR CODE HERE --- */
-
-    /* The following code is based on a TI Drivers implementation */
-
     uint8_t         dataRx = 0;
-    SPI_Transaction spiTransaction;
-    bool            transferOK;
-
-    spiTransaction.count = 1;
-    spiTransaction.txBuf = (void *) &dataTx;
-    spiTransaction.rxBuf = (void *) &dataRx;
-
 
     setCS( LOW );
 
-    transferOK = SPI_transfer( spiHdl, &spiTransaction);
+    SPI.beginTransaction(SPISettings(SPI_SPEED, MSBFIRST, SPI_MODE1));
+    SPI.transfer(dataTx);
+    SPI.endTransaction();
 
     setCS( HIGH );
 
-    if (transferOK == NULL) {
-        // Display and handle error with SPI data transfer
-        while (1);
-    }
     return( dataRx );
 }
