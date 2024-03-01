@@ -125,7 +125,7 @@ int packetSize = 0;
 //id 1 byte
 //timestamp 4 byte
 const int dataPacketSize = sensor_number*4+4+4; 
-uint8_t outgoingDataPacketBuffers[40]; // buffer for going out to PC
+uint8_t outgoingDataPacketBuffers[dataPacketSize]; // buffer for going out to PC
 
 uint8_t loopCounter = 0;
 uint32_t id = 0;
@@ -240,11 +240,6 @@ void endFire()
 void purge()
 {
   purgeState = 1;
-  depressurize();
-  digitalWriteFast(RELAY_3, LOW);
-  digitalWriteFast(RELAY_4, LOW);
-  digitalWriteFast(RELAY_5, LOW);
-  digitalWriteFast(RELAY_6, LOW);
   digitalWriteFast(RELAY_7, HIGH);
 }
 
@@ -256,15 +251,19 @@ void endPurge()
 
 void loop() 
 {
-  uint8_t command[2];
+  uint32_t command[2];
 
   packetSize = Udp.parsePacket(); // check to see if we receive any command
 
   if(packetSize > 0)
   {
+    // pointer address to received data array from UDP
     const uint8_t* packetBuffer = Udp.data(); 
-    command[0] = packetBuffer[0];
-    command[1] = packetBuffer[1];
+
+    // shifts the first 4 bytes into a 32 bits int as packet ID
+    command[0] = (packetBuffer[0] << 3 | packetBuffer[0] << 2 | packetBuffer[0] << 1| packetBuffer[0] << 0); 
+    // shifts the last 4 bytes from received data into a 32 bits int as command
+    command[1] = (packetBuffer[0] << 7 | packetBuffer[0] << 6 | packetBuffer[0] << 5| packetBuffer[0] << 4); 
   }
   else
   {}
@@ -294,61 +293,65 @@ void loop()
 
   Serial.println("data out");
     
-  if(command[0] == 1) // relay 1 on
+  if(command[1] == 1) // relay 1 on
   {
     state1 = !state1;
     digitalWriteFast(RELAY_1, state1);
   }
-  if(command[0] == 2) // relay 2 on
+  else if(command[1] == 2) // relay 2 on
   {
     state2 = !state2;
     digitalWriteFast(RELAY_2, state2);
   }
-  if(command[0] == 3) // relay 3 on
+  else if(command[1] == 3) // relay 3 on
   {
     state3 = !state3;
     digitalWriteFast(RELAY_3, state3);
   }  
-  if(command[0] == 4) // relay 4 on
+  else if(command[1] == 4) // relay 4 on
   {
     state4 = !state4;
     digitalWriteFast(RELAY_4, state4);
   }  
-  if(command[0] == 5) // relay 5 on
+  else if(command[1] == 5) // relay 5 on
   {
     state5 = !state5;
     digitalWriteFast(RELAY_5, state5);
   }
-  if(command[0] == 6) // relay 6 on
+  else if(command[1] == 6) // relay 6 on
   {
     state6 = !state6;
     digitalWriteFast(RELAY_6, state6);
   }
-  if(command[0] == 7)
+  else if(command[1] == 7)
   {
     state7 = !state7;
     digitalWriteFast(RELAY_7, state7);
   }
-
-  if(command[0] == 11)
+  else if(command[1] == 11)
   {
     startCheck();
     previousTime = millis();
   }
-  if(command[0] == 12)
+  else if(command[1] == 12)
   {
     pressurize();
   }
-  if(command[0] == 13)
+  else if(command[1] == 13)
   {
     purge();
     previousTime = millis();
   }  
-  if(command[0] == 14)
+  else if(command[1] == 14)
   {
     fire(); 
     previousTime = millis();
-  }                
+  }
+  else if(command[1] == 15)
+  {
+    endPurge(); 
+  }             
+  else{}   
 
   elapsedTime = millis() - previousTime;
   
