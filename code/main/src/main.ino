@@ -124,7 +124,7 @@ int packetSize = 0;
 //individual reading timestamp 4 byte
 //id 1 byte
 //timestamp 4 byte
-const int dataPacketSize = sensor_number*4*2+1+4; 
+const int dataPacketSize = sensor_number*4+4+4; 
 uint8_t outgoingDataPacketBuffers[40]; // buffer for going out to PC
 
 uint8_t loopCounter = 0;
@@ -169,7 +169,7 @@ void setup()
 
   Serial.println("Relays initialized...");
 
-  // initialize adc and set gain + data rate
+  // // initialize adc and set gain + data rate
   adc.InitializeADC();
   adc.setPGA(PGA_1);
   adc.setDRATE(DRATE_2000SPS);
@@ -280,8 +280,8 @@ void loop()
     uint8_t startByte = (i*4) + 4;
     for (int j = 0; j<4; j++)
     {
-      // outgoingDataPacketBuffers[startByte+j] = (adc.cycleSingle() >> (8*(3-j))) & 0xFF;
-      outgoingDataPacketBuffers[startByte+j] = (random(0,250) >> (8*(3-j))) & 0xFF;
+      outgoingDataPacketBuffers[startByte+j] = (adc.cycleSingle() >> (8*(3-j))) & 0xFF;
+      // outgoingDataPacketBuffers[startByte+j] = (random(0,250) >> (8*(3-j))) & 0xFF;
     }
   }
 
@@ -291,6 +291,8 @@ void loop()
   }
 
   Udp.send(remote,localPort,outgoingDataPacketBuffers,40);
+
+  Serial.println("data out");
     
   if(command[0] == 1) // relay 1 on
   {
