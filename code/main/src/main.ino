@@ -302,18 +302,23 @@ void loop()
   uint32_t command[2] = {0,0};
   uint32_t valveStates[8] = {2,state1,state2,state3,state4,state5,state6,state7};
   bool valveStateChange = 0;
-  
+  int sumCurrentState = 0;
+  int sumPreviousState = 0;
+
   // check to see if there is any valve state changes
   for (int i = 0; i<8; i++)
   {
-    if (valveStates[i] != previousValveStates[i])
-    {
-      valveStateChange = 1;
-    }
-    else
-    {
-      valveStateChange = 0;
-    }
+    sumCurrentState = sumCurrentState + valveStates[i];
+    sumPreviousState = sumPreviousState + previousValveStates[i]; 
+  }
+
+  if(sumCurrentState == sumPreviousState)
+  {
+    valveStateChange = 0;
+  }
+  else
+  {
+    valveStateChange = 1;
   }
 
   // convert 32 bit int array into 8 bit int array for udp compatibility
@@ -323,10 +328,19 @@ void loop()
   // if detects changes, send the new set of states
   if(valveStateChange)
   {
+    for(int i = 0; i<8; i++)
+    {
+      Serial.print(valveStates[i]);
+      Serial.print(" ");
+    }
+    Serial.println("");
     Udp.send(remote,localPort,valveStatesBuffer,32);
   }
   // update the changes for future comparisons
-  memcpy(previousValveStates, valveStates, sizeof(previousValveStates));
+  for (int i = 0; i<8; i++)
+  {
+    previousValveStates[i] = valveStates[i];
+  }
 
   packetSize = Udp.parsePacket(); // check to see if we receive any command
 
