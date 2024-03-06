@@ -129,7 +129,7 @@ uint8_t outgoingDataPacketBuffers[dataPacketSize]; // buffer for going out to PC
 
 uint8_t loopCounter = 0;
 uint32_t id = 0;
-
+uint32_t previousValveStates[8] = {2,0,0,0,0,0,0,1};
 
 void setup() 
 {
@@ -191,7 +191,13 @@ void startCheck()
   {
     digitalWriteFast(relayPins[i],HIGH);
   }
-  state1, state2, state3, state4, state5, state6, state7 = 1;
+  state1 = 1;
+  state2 = 1;
+  state3 = 1;
+  state4 = 1;
+  state5 = 1;
+  state6 = 1;
+  state7 = 1;
 }
 
 void endCheck()
@@ -201,13 +207,22 @@ void endCheck()
   {
     digitalWriteFast(relayPins[i],LOW);
   }
-  state1, state2, state3, state4, state5, state6, state7 = 0;
+  state1 = 0;
+  state2 = 0;
+  state3 = 0;
+  state4 = 0;
+  state5 = 0;
+  state6 = 0;
+  state7 = 0;
 }
 
 void pressurize()
 { 
   pressureState = 1; 
-  state1, state2, state5, state6 = 1;
+  state1 = 1;
+  state2 = 1;
+  state5 = 1;
+  state6 = 1;
   digitalWriteFast(RELAY_1, HIGH);
   digitalWriteFast(RELAY_2, HIGH); 
   digitalWriteFast(RELAY_5, HIGH);
@@ -217,7 +232,10 @@ void pressurize()
 void depressurize()
 {
   pressureState = 0;
-  state1, state2, state5, state6 = 0;
+  state1 = 0;
+  state2 = 0;
+  state5 = 0;
+  state6 = 0;
   digitalWriteFast(RELAY_1, LOW);
   digitalWriteFast(RELAY_2, LOW);
   digitalWriteFast(RELAY_5, LOW);
@@ -258,11 +276,57 @@ void endPurge()
   digitalWriteFast(RELAY_7, LOW);
 }
 
+// the function converts a 32 bits int array into 8 bit int for udp compatibility
+uint8_t* bufferConversion32(uint32_t arr[], int size, uint8_t* buffer)
+{
+  uint8_t startByte; // the position to begin shifting; multiple of 4 because there are
+                     // 4 bytes in a 32 bits int
+
+  // for loop to index next value in 32 bit array
+  for (int i = 0; i<size; i++)
+  {
+    uint32_t tempValue = arr[i];
+    startByte = 4*i;
+    // for loop to shifts 4 bytes individually from int32 
+    for(int j = 0; j<4; j++)
+    {
+      buffer[startByte + j] = (tempValue >> (8*(3-j))) & 0xFF;
+    }
+  }
+
+  return buffer;
+}
+
 void loop() 
 {
   uint32_t command[2] = {0,0};
   uint32_t valveStates[8] = {2,state1,state2,state3,state4,state5,state6,state7};
-  Udp.send(remote,localPort,valveStates,32);
+  bool valveStateChange = 0;
+  
+  // check to see if there is any valve state changes
+  for (int i = 0; i<8; i++)
+  {
+    if (valveStates[i] != previousValveStates[i])
+    {
+      valveStateChange = 1;
+    }
+    else
+    {
+      valveStateChange = 0;
+    }
+  }
+
+  // convert 32 bit int array into 8 bit int array for udp compatibility
+  uint8_t *valveStatesBuffer = new uint8_t[32];
+  valveStatesBuffer = bufferConversion32(valveStates,8,valveStatesBuffer);
+
+  // if detects changes, send the new set of states
+  if(valveStateChange)
+  {
+    Udp.send(remote,localPort,valveStatesBuffer,32);
+  }
+  // update the changes for future comparisons
+  memcpy(previousValveStates, valveStates, sizeof(previousValveStates));
 
   packetSize = Udp.parsePacket(); // check to see if we receive any command
 
@@ -271,9 +335,7 @@ void loop()
     // pointer address to received data array from UDP
     const uint8_t* packetBuffer = Udp.data(); 
 
-    // shifts the first 4 bytes into a 32 bits int as packet ID
     command[0] = packetBuffer[3]; 
-    // shifts the last 4 bytes from received data into a 32 bits int as command
     command[1] = packetBuffer[7]; 
     Serial.print(command[1]);
     Serial.print(" ");
