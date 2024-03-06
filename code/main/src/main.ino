@@ -187,10 +187,11 @@ void setup()
 void startCheck()
 {
   checkState = 1;
-  for (int i=0; i<6; i++)
+  for (int i=0; i<7; i++)
   {
     digitalWriteFast(relayPins[i],HIGH);
   }
+  state1, state2, state3, state4, state5, state6, state7 = 1;
 }
 
 void endCheck()
@@ -200,11 +201,13 @@ void endCheck()
   {
     digitalWriteFast(relayPins[i],LOW);
   }
+  state1, state2, state3, state4, state5, state6, state7 = 0;
 }
 
 void pressurize()
 { 
   pressureState = 1; 
+  state1, state2, state5, state6 = 1;
   digitalWriteFast(RELAY_1, HIGH);
   digitalWriteFast(RELAY_2, HIGH); 
   digitalWriteFast(RELAY_5, HIGH);
@@ -214,6 +217,7 @@ void pressurize()
 void depressurize()
 {
   pressureState = 0;
+  state1, state2, state5, state6 = 0;
   digitalWriteFast(RELAY_1, LOW);
   digitalWriteFast(RELAY_2, LOW);
   digitalWriteFast(RELAY_5, LOW);
@@ -224,6 +228,8 @@ void depressurize()
 void fire()
 {
   fireState = 1;
+  state3 = 1;
+  state4 = 1;
   digitalWriteFast(RELAY_3, HIGH);
   digitalWriteFast(RELAY_4, HIGH);
 }
@@ -231,6 +237,8 @@ void fire()
 void endFire()
 {
   fireState = 0;
+  state3 = 0;
+  state4 = 0;
   digitalWriteFast(RELAY_3, LOW);
   digitalWriteFast(RELAY_4, LOW);
 }
@@ -239,18 +247,22 @@ void endFire()
 void purge()
 {
   purgeState = 1;
+  state7 = 1;
   digitalWriteFast(RELAY_7, HIGH);
 }
 
 void endPurge()
 {
   purgeState = 0;
+  state7 = 0;
   digitalWriteFast(RELAY_7, LOW);
 }
 
 void loop() 
 {
   uint32_t command[2] = {0,0};
+  uint32_t valveStates[8] = {2,state1,state2,state3,state4,state5,state6,state7};
+  Udp.send(remote,localPort,valveStates,32);
 
   packetSize = Udp.parsePacket(); // check to see if we receive any command
 
@@ -283,7 +295,6 @@ void loop()
     for (int j = 0; j<4; j++)
     {
       outgoingDataPacketBuffers[startByte+j] = (tempData >> (8*(3-j))) & 0xFF;
-      // outgoingDataPacketBuffers[startByte+j] = (random(0,250) >> (8*(3-j))) & 0xFF;
     }
   }
 
@@ -368,7 +379,6 @@ void loop()
   {
     endFire();    
     previousTime = millis();
-    // purge();
   }
   
   elapsedTime = millis() - previousTime;
