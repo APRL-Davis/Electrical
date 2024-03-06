@@ -135,11 +135,6 @@ void setup()
 {
   Serial.begin(115200); //The value does not matter if you use an MCU with native USB
 
-  while (!Serial)
-  {
-    ;//Wait until the serial becomes available
-  }
-
   Serial.println("Serial available");
 
   memset(outgoingDataPacketBuffers, 0, 40);
@@ -172,7 +167,7 @@ void setup()
   // // initialize adc and set gain + data rate
   adc.InitializeADC();
   adc.setPGA(PGA_1);
-  adc.setDRATE(DRATE_2000SPS);
+  adc.setDRATE(DRATE_1000SPS);
 
   // perform self calibration
   adc.sendDirectCommand(SELFCAL);
@@ -212,13 +207,17 @@ void pressurize()
   pressureState = 1; 
   digitalWriteFast(RELAY_1, HIGH);
   digitalWriteFast(RELAY_2, HIGH); 
+  digitalWriteFast(RELAY_5, HIGH);
+  digitalWriteFast(RELAY_6, HIGH);
 }
 
 void depressurize()
 {
   pressureState = 0;
   digitalWriteFast(RELAY_1, LOW);
-  digitalWriteFast(RELAY_2, LOW); 
+  digitalWriteFast(RELAY_2, LOW);
+  digitalWriteFast(RELAY_5, LOW);
+  digitalWriteFast(RELAY_6, LOW); 
 }
 
 // firing sequence
@@ -251,7 +250,7 @@ void endPurge()
 
 void loop() 
 {
-  uint32_t command[2];
+  uint32_t command[2] = {0,0};
 
   packetSize = Udp.parsePacket(); // check to see if we receive any command
 
@@ -261,9 +260,12 @@ void loop()
     const uint8_t* packetBuffer = Udp.data(); 
 
     // shifts the first 4 bytes into a 32 bits int as packet ID
-    command[0] = (packetBuffer[0] << 3 | packetBuffer[0] << 2 | packetBuffer[0] << 1| packetBuffer[0] << 0); 
+    command[0] = packetBuffer[3]; 
     // shifts the last 4 bytes from received data into a 32 bits int as command
-    command[1] = (packetBuffer[0] << 7 | packetBuffer[0] << 6 | packetBuffer[0] << 5| packetBuffer[0] << 4); 
+    command[1] = packetBuffer[7]; 
+    Serial.print(command[1]);
+    Serial.print(" ");
+    Serial.println(packetSize);
   }
   else
   {}
@@ -277,9 +279,10 @@ void loop()
   for (int i = 0; i < sensor_number; i++)
   {
     uint8_t startByte = (i*4) + 4;
+    long tempData = adc.cycleSingle();
     for (int j = 0; j<4; j++)
     {
-      outgoingDataPacketBuffers[startByte+j] = (adc.cycleSingle() >> (8*(3-j))) & 0xFF;
+      outgoingDataPacketBuffers[startByte+j] = (tempData >> (8*(3-j))) & 0xFF;
       // outgoingDataPacketBuffers[startByte+j] = (random(0,250) >> (8*(3-j))) & 0xFF;
     }
   }
@@ -290,8 +293,6 @@ void loop()
   }
 
   Udp.send(remote,localPort,outgoingDataPacketBuffers,40);
-
-  Serial.println("data out");
     
   if(command[1] == 1) // relay 1 on
   {
@@ -349,7 +350,7 @@ void loop()
   }
   else if(command[1] == 15)
   {
-    endPurge(); 
+    depressurize(); 
   }             
   else{}   
 
@@ -367,7 +368,7 @@ void loop()
   {
     endFire();    
     previousTime = millis();
-    purge();
+    // purge();
   }
   
   elapsedTime = millis() - previousTime;
