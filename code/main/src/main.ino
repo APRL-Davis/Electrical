@@ -101,9 +101,6 @@ int registerToWrite = 0; //Register number to be written
 int registerValueToWrite = 0; //Value to be written in the selected register
 
 //==================Etherne==================//
-// how many reading sets is in 1 udp packet at 25 Hz transmission rate.
-// packet size based on sampling rate, number of sensors, and udp transmission frequency
-const int SENSOR_READINGS_PER_PACKET = 50; // fixed size. Send as soon as packet is filled.
 const int sensor_number = 8;
 
 // Enter a MAC address and IP address for your controller below.
@@ -130,6 +127,7 @@ uint8_t outgoingDataPacketBuffers[dataPacketSize]; // buffer for going out to PC
 uint8_t loopCounter = 0;
 uint32_t id = 0;
 uint32_t previousValveStates[8] = {2,0,0,0,0,0,0,1};
+bool valveStateChange = 0;
 
 void setup() 
 {
@@ -301,41 +299,17 @@ void loop()
 {
   uint32_t command[2] = {0,0};
   uint32_t valveStates[8] = {2,state1,state2,state3,state4,state5,state6,state7};
-  bool valveStateChange = 0;
-  int sumCurrentState = 0;
-  int sumPreviousState = 0;
-
-  // check to see if there is any valve state changes
-  for (int i = 0; i<8; i++)
-  {
-    sumCurrentState = sumCurrentState + valveStates[i];
-    sumPreviousState = sumPreviousState + previousValveStates[i]; 
-  }
-
-  if(sumCurrentState == sumPreviousState)
-  {
-    valveStateChange = 0;
-  }
-  else
-  {
-    valveStateChange = 1;
-  }
 
   // convert 32 bit int array into 8 bit int array for udp compatibility
   uint8_t *valveStatesBuffer = new uint8_t[32];
   valveStatesBuffer = bufferConversion32(valveStates,8,valveStatesBuffer);
 
-  // if detects changes, send the new set of states
   if(valveStateChange)
   {
-    for(int i = 0; i<8; i++)
-    {
-      Serial.print(valveStates[i]);
-      Serial.print(" ");
-    }
-    Serial.println("");
     Udp.send(remote,localPort,valveStatesBuffer,32);
+    valveStateChange = 0;
   }
+
   // update the changes for future comparisons
   for (int i = 0; i<8; i++)
   {
@@ -385,59 +359,71 @@ void loop()
   {
     state1 = !state1;
     digitalWriteFast(RELAY_1, state1);
+    valveStateChange = 1;
   }
   else if(command[1] == 2) // relay 2 on
   {
     state2 = !state2;
     digitalWriteFast(RELAY_2, state2);
+    valveStateChange = 1;
   }
   else if(command[1] == 3) // relay 3 on
   {
     state3 = !state3;
     digitalWriteFast(RELAY_3, state3);
+    valveStateChange = 1;
   }  
   else if(command[1] == 4) // relay 4 on
   {
     state4 = !state4;
     digitalWriteFast(RELAY_4, state4);
+    valveStateChange = 1;
   }  
   else if(command[1] == 5) // relay 5 on
   {
     state5 = !state5;
     digitalWriteFast(RELAY_5, state5);
+    valveStateChange = 1;
   }
   else if(command[1] == 6) // relay 6 on
   {
     state6 = !state6;
     digitalWriteFast(RELAY_6, state6);
+    valveStateChange = 1;
   }
   else if(command[1] == 7)
   {
     state7 = !state7;
     digitalWriteFast(RELAY_7, state7);
+    valveStateChange = 1;
   }
   else if(command[1] == 11)
   {
     startCheck();
     previousTime = millis();
+    valveStateChange = 1;
   }
   else if(command[1] == 12)
   {
     pressurize();
+    valveStateChange = 1;
   }
   else if(command[1] == 13)
   {
     purge();
     previousTime = millis();
+    valveStateChange = 1;
   }  
   else if(command[1] == 14)
   {
     fire(); 
     previousTime = millis();
+    valveStateChange = 1;
   }
   else if(command[1] == 15)
   {
     depressurize(); 
+    valveStateChange = 1;
   }             
   else{}   
 
@@ -447,6 +433,7 @@ void loop()
   {
     endCheck();
     previousTime = millis();
+    valveStateChange = 1;
   }
   
   elapsedTime = millis() - previousTime;
@@ -455,6 +442,7 @@ void loop()
   {
     endFire();    
     previousTime = millis();
+    valveStateChange = 1;
   }
   
   elapsedTime = millis() - previousTime;
@@ -463,5 +451,6 @@ void loop()
   { 
     endPurge();
     previousTime = millis();
+    valveStateChange = 1;
   }
 }
