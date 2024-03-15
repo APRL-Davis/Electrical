@@ -24,6 +24,20 @@ char inputMode = ' '; //can be 's' and 'd': single-ended and differential
 int pgaValues[7] = {PGA_1, PGA_2, PGA_4, PGA_8, PGA_16, PGA_32, PGA_64}; //Array to store the PGA settings
 int pgaSelection = 0; //Number used to pick the PGA value from the above array
 
+/*===== TVC Encoders =====*/
+
+const int X_ENCODER_CS = 0;
+const int Y_ENCODER_CS = 1;
+
+AMT22 xEncoder(X_ENCODER_CS, RES_Type_t::RES14); // CS, Resolution (14-bit or 12-bit)
+AMT22 yEncoder(Y_ENCODER_CS, RES_Type_t::RES14);
+
+uint16_t xEncoderPosition = 0;
+uint16_t yEncoderPosition = 0;
+
+bool xEncoderFaultFlag = 0;
+bool yEncoderFaultFlag = 0;
+
 /*======== Relays ========*/
 
 const int RELAY_1 = 3; // isok
@@ -124,7 +138,7 @@ int packetSize = 0;
 //individual reading timestamp 4 byte
 //id 1 byte
 //timestamp 4 byte
-const int dataPacketSize = sensor_number*4+4+4; 
+const int dataPacketSize = sensor_number*4+4+4+4; 
 uint8_t outgoingDataPacketBuffers[dataPacketSize]; // buffer for going out to PC
 
 uint8_t loopCounter = 0;
@@ -137,7 +151,7 @@ void setup()
 
   Serial.println("Serial available");
 
-  memset(outgoingDataPacketBuffers, 0, 40);
+  memset(outgoingDataPacketBuffers, 0, dataPacketSize);
 
   // Check for Ethernet hardware present
   if (!Ethernet.begin()) {
@@ -374,12 +388,22 @@ void loop()
     }
   }
 
+  xEncoderPosition = xEncoder.getPosition();
+  for (int j = 0; j < 2; j++) {
+    outgoingDataPacketBuffers[36 + j] = (xEncoderPosition >> (8 * (3 - j))) & 0xFF;
+  }
+
+  yEncoderPosition = yEncoder.getPosition();
+  for (int j = 0; j < 2; j++) {
+    outgoingDataPacketBuffers[38 + j] = (yEncoderPosition >> (8 * (3 - j))) & 0xFF;
+  }
+
   for (int j = 0; j<4; j++)
   {
     outgoingDataPacketBuffers[j] = (id >> (8*(3-j))) & 0xFF;
   }
 
-  Udp.send(remote,localPort,outgoingDataPacketBuffers,40);
+  Udp.send(remote,localPort,outgoingDataPacketBuffers,dataPacketSize);
     
   if(command[1] == 1) // relay 1 on
   {
