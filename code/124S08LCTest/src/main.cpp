@@ -9,5 +9,11 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  Serial.print("ID: ");
+  Serial.println(readSingleRegister(REG_ADDR_ID));
+
+  Serial.print("STATUS: ");
+  Serial.println(readSingleRegister(REG_ADDR_STATUS));
+
+  delay(5000);
 }

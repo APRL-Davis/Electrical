@@ -140,7 +140,7 @@ uint8_t getRegisterValue( uint8_t address )
 uint8_t readSingleRegister( uint8_t address )
 {
     /* Initialize arrays */
-    uint8_t DataTx[COMMAND_LENGTH + 1] = { OPCODE_RREG | (address & OPCODE_RWREG_MASK), 0, 0 };
+    uint8_t DataTx[COMMAND_LENGTH + 1] = { (uint8_t)(OPCODE_RREG | (address & OPCODE_RWREG_MASK)), 0, 0 };
     uint8_t DataRx[COMMAND_LENGTH + 1] = { 0, 0, 0 };
 
 
@@ -202,7 +202,7 @@ void readMultipleRegisters( uint8_t startAddress, uint8_t count )
 void writeSingleRegister( uint8_t address, uint8_t data )
 {
     /* Initialize arrays */
-    uint8_t DataTx[COMMAND_LENGTH + 1] = { OPCODE_WREG | (address & OPCODE_RWREG_MASK), 0, data};
+    uint8_t DataTx[COMMAND_LENGTH + 1] = { (uint8_t)(OPCODE_WREG | (address & OPCODE_RWREG_MASK)), 0, data};
     uint8_t DataRx[COMMAND_LENGTH + 1] = { 0 };
 
     /* Check that the register address is in range */
