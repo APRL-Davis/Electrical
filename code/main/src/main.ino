@@ -34,8 +34,6 @@ const int RELAY_5 = 7; // vent k
 const int RELAY_6 = 8; // vent l
 const int RELAY_7 = 14; //purge
 
-int relayPins[] = {RELAY_1,RELAY_2,RELAY_3,RELAY_4,RELAY_5,RELAY_6,RELAY_7};
-  
 unsigned long previousTime;
 unsigned long currentMillis;
 unsigned long elapsedTime;
@@ -126,8 +124,7 @@ uint8_t outgoingDataPacketBuffers[dataPacketSize]; // buffer for going out to PC
 
 uint8_t loopCounter = 0;
 uint32_t id = 0;
-uint32_t previousValveStates[8] = {2,0,0,0,0,0,0,1};
-bool valveStateChange = 0;
+bool valveStateChange = 1;
 
 void setup() 
 {
@@ -185,10 +182,13 @@ void setup()
 void startCheck()
 {
   checkState = 1;
-  for (int i=0; i<7; i++)
-  {
-    digitalWriteFast(relayPins[i],HIGH);
-  }
+  digitalWrite(RELAY_1, HIGH);
+  digitalWrite(RELAY_2, HIGH);
+  digitalWrite(RELAY_3, HIGH);
+  digitalWrite(RELAY_4, HIGH);
+  digitalWrite(RELAY_5, HIGH);
+  digitalWrite(RELAY_6, HIGH);
+  digitalWrite(RELAY_7, HIGH);
   state1 = 1;
   state2 = 1;
   state3 = 1;
@@ -201,10 +201,13 @@ void startCheck()
 void endCheck()
 {
   checkState = 0;
-  for (int i=0; i<7; i++)
-  {
-    digitalWriteFast(relayPins[i],LOW);
-  }
+  digitalWrite(RELAY_1, LOW);
+  digitalWrite(RELAY_2, LOW);
+  digitalWrite(RELAY_3, LOW);
+  digitalWrite(RELAY_4, LOW);
+  digitalWrite(RELAY_5, LOW);
+  digitalWrite(RELAY_6, LOW);
+  digitalWrite(RELAY_7, LOW);
   state1 = 0;
   state2 = 0;
   state3 = 0;
@@ -221,10 +224,10 @@ void pressurize()
   state2 = 1;
   state5 = 1;
   state6 = 1;
-  digitalWriteFast(RELAY_1, HIGH);
-  digitalWriteFast(RELAY_2, HIGH); 
-  digitalWriteFast(RELAY_5, HIGH);
-  digitalWriteFast(RELAY_6, HIGH);
+  digitalWrite(RELAY_1, HIGH);
+  digitalWrite(RELAY_2, HIGH); 
+  digitalWrite(RELAY_5, HIGH);
+  digitalWrite(RELAY_6, HIGH);
 }
 
 void depressurize()
@@ -234,10 +237,10 @@ void depressurize()
   state2 = 0;
   state5 = 0;
   state6 = 0;
-  digitalWriteFast(RELAY_1, LOW);
-  digitalWriteFast(RELAY_2, LOW);
-  digitalWriteFast(RELAY_5, LOW);
-  digitalWriteFast(RELAY_6, LOW); 
+  digitalWrite(RELAY_1, LOW);
+  digitalWrite(RELAY_2, LOW);
+  digitalWrite(RELAY_5, LOW);
+  digitalWrite(RELAY_6, LOW); 
 }
 
 // firing sequence
@@ -246,8 +249,8 @@ void fire()
   fireState = 1;
   state3 = 1;
   state4 = 1;
-  digitalWriteFast(RELAY_3, HIGH);
-  digitalWriteFast(RELAY_4, HIGH);
+  digitalWrite(RELAY_3, HIGH);
+  digitalWrite(RELAY_4, HIGH);
 }
 
 void endFire()
@@ -255,8 +258,8 @@ void endFire()
   fireState = 0;
   state3 = 0;
   state4 = 0;
-  digitalWriteFast(RELAY_3, LOW);
-  digitalWriteFast(RELAY_4, LOW);
+  digitalWrite(RELAY_3, LOW);
+  digitalWrite(RELAY_4, LOW);
 }
 
 // purge sequence
@@ -264,14 +267,14 @@ void purge()
 {
   purgeState = 1;
   state7 = 1;
-  digitalWriteFast(RELAY_7, HIGH);
+  digitalWrite(RELAY_7, HIGH);
 }
 
 void endPurge()
 {
   purgeState = 0;
   state7 = 0;
-  digitalWriteFast(RELAY_7, LOW);
+  digitalWrite(RELAY_7, LOW);
 }
 
 // the function converts a 32 bits int array into 8 bit int for udp compatibility
@@ -301,19 +304,24 @@ void loop()
   uint32_t valveStates[8] = {2,state1,state2,state3,state4,state5,state6,state7};
 
   // convert 32 bit int array into 8 bit int array for udp compatibility
-  uint8_t *valveStatesBuffer = new uint8_t[32];
-  valveStatesBuffer = bufferConversion32(valveStates,8,valveStatesBuffer);
+  uint8_t valveStatesBuffer[40];
+  // valveStatesBuffer = bufferConversion32(valveStates,8,valveStatesBuffer);
 
   if(valveStateChange)
   {
-    Udp.send(remote,localPort,valveStatesBuffer,32);
-    valveStateChange = 0;
-  }
+    for (int i = 0; i<8; i++)
+    {   
+      uint8_t startByte = 4*i;
 
-  // update the changes for future comparisons
-  for (int i = 0; i<8; i++)
-  {
-    previousValveStates[i] = valveStates[i];
+      // for loop to shifts 4 bytes individually from int32 
+      for(int j = 0; j<4; j++)
+      {
+        valveStatesBuffer[startByte + j] = (valveStates[i] >> (8*(3-j))) & 0xFF;
+      }
+    }
+
+    Udp.send(remote,localPort,valveStatesBuffer,40);
+    valveStateChange = 0;
   }
 
   packetSize = Udp.parsePacket(); // check to see if we receive any command
@@ -358,43 +366,43 @@ void loop()
   if(command[1] == 1) // relay 1 on
   {
     state1 = !state1;
-    digitalWriteFast(RELAY_1, state1);
+    digitalWrite(RELAY_1, state1);
     valveStateChange = 1;
   }
   else if(command[1] == 2) // relay 2 on
   {
     state2 = !state2;
-    digitalWriteFast(RELAY_2, state2);
+    digitalWrite(RELAY_2, state2);
     valveStateChange = 1;
   }
   else if(command[1] == 3) // relay 3 on
   {
     state3 = !state3;
-    digitalWriteFast(RELAY_3, state3);
+    digitalWrite(RELAY_3, state3);
     valveStateChange = 1;
   }  
   else if(command[1] == 4) // relay 4 on
   {
     state4 = !state4;
-    digitalWriteFast(RELAY_4, state4);
+    digitalWrite(RELAY_4, state4);
     valveStateChange = 1;
   }  
   else if(command[1] == 5) // relay 5 on
   {
     state5 = !state5;
-    digitalWriteFast(RELAY_5, state5);
+    digitalWrite(RELAY_5, state5);
     valveStateChange = 1;
   }
   else if(command[1] == 6) // relay 6 on
   {
     state6 = !state6;
-    digitalWriteFast(RELAY_6, state6);
+    digitalWrite(RELAY_6, state6);
     valveStateChange = 1;
   }
-  else if(command[1] == 7)
+  else if(command[1] == 7) 
   {
     state7 = !state7;
-    digitalWriteFast(RELAY_7, state7);
+    digitalWrite(RELAY_7, state7);
     valveStateChange = 1;
   }
   else if(command[1] == 11)
