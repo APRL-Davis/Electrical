@@ -1,6 +1,6 @@
 #include "ADS1256.h"
-#include <iostream>
-#include <cmath>
+// #include <iostream>
+// #include <cmath>
 #include <inttypes.h>
 #include <time.h>
 #include <QNEthernet.h>

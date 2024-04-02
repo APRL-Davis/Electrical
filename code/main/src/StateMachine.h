@@ -1,35 +1,37 @@
-// #ifndef _StateMachine_h
-// #define _StateMachine_h
+#pragma once
 
-// class StateMachine{
+class StateMachine{
 
-// public:
-//     enum State {DEFAULT, CHECK, ARMED, HOT, MANUAL};
-//     enum Command {RESET, PRESSURIZE, FIRE, DEPRESSURIZE, ABORT};    
+public:
+    enum State {DEFAULT, CHECK, ARMED, HOT, MANUAL};
+    enum Command {RESET, PRESSURIZE, FIRE, DEPRESSURIZE, ABORT};    
 
-//     StateMachine(){};
+    long targetTime = 10000;
 
-//     void processCommand(Command command);
-//     void changeState(State newState); // given state and command, change to appropriate state
-//     int getState(); // returns the current state
+    StateMachine(const int keroIso, const int loxIso, const int keroMain, const int loxMain,
+                            const int keroVent, const int loxVent, const int purge);
 
-//     void reset();
-//     void pressurize();
-//     void fire();
-//     void depressurize();
-//     void abort();
+    State state;
 
-// private:
+    void processCommand(Command command); //what to do when receive command
+    void changeState(State newState); // given state and command, change to appropriate state STATUS
+    int getState(); // returns the current state
 
-//     /*======== Relays ========*/
-//     const int _keroIsolation; // isok
-//     const int _loxIsolation; // isol
-//     const int _keroMain; // main k
-//     const int _loxMain; // main l
-//     const int _keroVent; // vent k
-//     const int _loxVent; // vent l
-//     const int _purge; //purge    
+    void reset();
+    void pressurize();
+    void fire();
+    void depressurize();
+    void abort();
 
-// };
+private:
 
-// #endif
+    /*======== Relays ========*/
+    int _keroIsolation; // isok
+    int _loxIsolation; // isol
+    int _keroMain; // main k
+    int _loxMain; // main l
+    int _keroVent; // vent k
+    int _loxVent; // vent l
+    int _purge; //purge    
+
+};
