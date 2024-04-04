@@ -73,10 +73,12 @@ const int sensor_number = 8;
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
-IPAddress ip(10, 0, 0, 69);     // MCU IP
+IPAddress ip(192, 168, 1, 3);     // MCU IP
 IPAddress subnet(255,255,255,0); // set subnet mask
-IPAddress remote(10,0,0,51);    // PC IP
+// IPAddress remote(10,0,0,51);    // PC IP
+IPAddress remote(192,168,1,2);
 unsigned int localPort = 1682;     // local port to listen on
+unsigned int remotePort = 1682;
 
 // An EthernetUDP instance to let us send and receive packets over UDP
 using namespace qindesign::network;
@@ -187,7 +189,7 @@ void loop()
     //   }
     // }
 
-    Udp.send(remote,localPort,valveStatesBuffer,40);
+    Udp.send(remote,remotePort,valveStatesBuffer,40);
     machina.valveStateChange = 0;
   }
 
@@ -228,7 +230,7 @@ void loop()
     outgoingDataPacketBuffers[j] = (id >> (8*(3-j))) & 0xFF;
   }
 
-  Udp.send(remote,localPort,outgoingDataPacketBuffers,dataPacketSize);
+  Udp.send(remote,remotePort,outgoingDataPacketBuffers,dataPacketSize);
     
   machina.processCommand(command, fireTime, purgeTime, fireDuration, purgeDuration);
 }
