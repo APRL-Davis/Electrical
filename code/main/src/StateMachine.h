@@ -3,17 +3,28 @@
 class StateMachine{
 
 public:
-    enum State {DEFAULT, CHECK, ARMED, HOT, MANUAL};
-    enum Command {RESET, PRESSURIZE, FIRE, DEPRESSURIZE, ABORT};    
+    bool endFireFlag = 0;
+    bool valveStateChange = 1;
 
-    long targetTime = 10000;
+    // relay states/
+    bool isok_state = 0;
+    bool isol_state = 0;
+    bool maink_state = 0;
+    bool mainl_state = 0;
+    bool ventk_state = 0;
+    bool ventl_state = 0;
+    bool purge_state = 0;
+
+    enum State {DEFAULT, ARMED, HOT, MANUAL};
+    enum Command {ORIGIN = 0, PRESSURIZE = 12, FIRE = 14, DEPRESSURIZE = 15, ABORT = 16, FULL = 17};    
 
     StateMachine(const int keroIso, const int loxIso, const int keroMain, const int loxMain,
                             const int keroVent, const int loxVent, const int purge);
 
     State state;
 
-    void processCommand(Command command); //what to do when receive command
+    void initializeMachina();
+    void processCommand(int command, long targetTime, long purgeTime, long fireDuration, long purgeDuration); //what to do when receive command
     void changeState(State newState); // given state and command, change to appropriate state STATUS
     int getState(); // returns the current state
 
@@ -22,6 +33,8 @@ public:
     void fire();
     void depressurize();
     void abort();
+    void endFire();
+    void purge();
 
 private:
 
