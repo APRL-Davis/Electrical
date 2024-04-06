@@ -2,9 +2,9 @@
 #include "Arduino.h" 
 
 StateMachine::StateMachine(const int keroIso, const int loxIso, const int keroMain, const int loxMain,
-                            const int keroVent, const int loxVent, const int purge)
+                            const int keroVent, const int loxVent, const int purge, const int keySwitch,
+                            const int breakWire ,const int igniter)
 {
-    state = DEFAULT;
     _keroIsolation = keroIso;
     _loxIsolation = loxIso;
     _keroMain = keroMain;
@@ -12,6 +12,9 @@ StateMachine::StateMachine(const int keroIso, const int loxIso, const int keroMa
     _keroVent = keroVent;
     _loxVent = loxVent;
     _purge = purge;
+    _keySwitch = keySwitch;
+    _igniter = igniter;
+    _breakWire = breakWire;
 }
 
 void StateMachine::initializeMachina()
@@ -22,12 +25,29 @@ void StateMachine::initializeMachina()
     pinMode(_loxMain,OUTPUT);
     pinMode(_keroVent,OUTPUT);
     pinMode(_loxVent,OUTPUT);
-    pinMode(_purge,OUTPUT);    
+    pinMode(_purge,OUTPUT);   
+    pinMode(_igniter, OUTPUT);
+    pinMode(_keySwitch, INPUT);
+
+    isok_state = 0;
+    isol_state = 0;
+    maink_state = 0;
+    mainl_state = 0;
+    ventk_state = 0;
+    ventl_state = 0;
+    purge_state = 0;
+    endFireFlag = 0;
+    valveStateChange = 1;
+    referenceTime = 0;
+    getFire = 0;
+    breakWireStatus = 0;
+
+    _state = DEFAULT;
 }
 
 void StateMachine::changeState(State newState)
 {
-    state = newState;
+    _state = newState;
 }
 
 void StateMachine::reset()
@@ -79,7 +99,6 @@ void StateMachine::fire()
 {
     digitalWrite(_keroMain, HIGH);
     digitalWrite(_loxMain, HIGH);
-
     maink_state = 1;
     mainl_state = 1;
 }
@@ -117,16 +136,21 @@ void StateMachine::abort()
     ventl_state = 0;
 }
 
-void StateMachine::processCommand(int command, long targetTime, long purgeTime, long fireDuration, long purgeDuration)
+void StateMachine::processCommand(int command, unsigned long targetTime, unsigned long purgeTime, 
+                                unsigned long fireDuration, unsigned long purgeDuration)
 {
-    switch(state)
+    switch(_state)
     {
         case DEFAULT:
+            if(digitalRead(_keySwitch))
+            {
+                changeState(KEY);
+            }
             if(command == PRESSURIZE)
             {
-                changeState(ARMED);   
+                changeState(ARMED);  
                 pressurize();
-                valveStateChange = 1;
+                valveStateChange = 1; 
             }
             else if (command == FULL)
             {
@@ -135,12 +159,15 @@ void StateMachine::processCommand(int command, long targetTime, long purgeTime, 
             break;
 
         case ARMED:
+            if(digitalRead(_keySwitch))
+            {
+                changeState(KEY);
+            }
             if(command == FIRE)
             {
+                digitalWrite(_igniter, HIGH);
+                referenceTime = millis();
                 changeState(HOT);
-                fire();
-                fireDuration = 0;
-                valveStateChange = 1;
             }
             if(command == DEPRESSURIZE)
             {
@@ -155,36 +182,67 @@ void StateMachine::processCommand(int command, long targetTime, long purgeTime, 
             break;
 
         case HOT:
+            if(digitalRead(_keySwitch))
+            {
+                changeState(KEY);
+            }
             if(command == ABORT)
             {
                 abort();
                 purge();
-                purgeDuration = 0;
+                referenceTime = millis();
                 endFireFlag = 1;
                 valveStateChange = 1;
             }
-            else if (fireDuration >= targetTime && endFireFlag == 0)
+            if(fireDuration >= 3000 && digitalRead(_breakWire))
             {
+                digitalWrite(_loxMain, HIGH);
+                mainl_state = 1;
+                valveStateChange = 1;   
+                getFire = 1;
+                referenceTime = 0;
+            }
+            else if(fireDuration >= 150 && mainl_state == 1 && maink_state == 0 && getFire)
+            {
+                Serial.println("inside maink");
+                digitalWrite(_keroMain, HIGH);
+                maink_state = 1;
+                valveStateChange = 1;
+            }
+            else if (fireDuration >= targetTime && !endFireFlag && getFire)
+            {
+                Serial.println("end fire");
                 endFire();
                 purge();
-                purgeDuration = 0;
+                referenceTime = millis();
                 endFireFlag = 1;
                 valveStateChange = 1;
             }
-            else if (purgeDuration >= 3000 && endFireFlag)
+            else if (purgeDuration >= 3000 && endFireFlag && getFire)
             {
                 reset();
                 changeState(DEFAULT);
                 endFireFlag = 0;
+                getFire = 0;
                 valveStateChange = 1;
             }
             else if (command == FULL)
             {
                 changeState(MANUAL);
+            }
+            else
+            {
+                changeState(ARMED);
+                endFireFlag = 0;
+                valveStateChange = 1;
             }          
             break;
 
         case MANUAL:
+            if(digitalRead(_keySwitch))
+            {
+                changeState(KEY);
+            }
             if(command == 1) // relay 1 on
             {
                 isok_state = !isok_state;
@@ -230,7 +288,14 @@ void StateMachine::processCommand(int command, long targetTime, long purgeTime, 
             else if(command == ORIGIN)
             {
                 reset();
+                valveStateChange = 1;
                 changeState(DEFAULT);
+            }
+        case KEY:
+            if(digitalRead(!_keySwitch))
+            {
+                changeState(DEFAULT);
+                abort();
             }
     }
 }
@@ -242,7 +307,7 @@ int StateMachine::getState()
     // armed = 2
     // hot = 3
     // manual = 4
-    return state;
+    return _state;
 }
 
     

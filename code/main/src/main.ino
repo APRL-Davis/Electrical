@@ -2,17 +2,18 @@
 #include "StateMachine.h"
 #include <inttypes.h>
 #include <time.h>
+#include <Wire.h>
 #include <QNEthernet.h>
+#include <Adafruit_MAX31856.h>
 
 /*======== ADC ========*/
 
 const int CS1 = 10;
-const int CS2 = 40;
 const int DRDY = 2;
 const int PDWN = 9;
 
 ADS1256 adc(DRDY, 2000000, PDWN, CS1, 2.5); //DRDY, SPI speed, SYNC(PDWN), CS, VREF(float).
-StateMachine machina(3,4,5,6,7,8,14);
+StateMachine machina(2,3,4,5,6,7,1,14,15,16);
 
 long rawConversion = 0; //24-bit raw value
 float voltageValue = 0; //human-readable floating point value
@@ -68,15 +69,21 @@ int registerToRead = 0; //Register number to be read
 int registerToWrite = 0; //Register number to be written
 int registerValueToWrite = 0; //Value to be written in the selected register
 
-//==================Etherne==================//
+// Thermocouples
+// int engineTC_CS = 39;
+// int engineTC_DRDY = 38;
+// Adafruit_MAX31856 engineTC = Adafruit_MAX31856(engineTC_CS);
+
+
+//==================Ethernet==================//
 const int sensor_number = 8;
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
-IPAddress ip(192, 168, 1, 3);     // MCU IP
+IPAddress ip(10, 0, 0, 69);     // MCU IP
 IPAddress subnet(255,255,255,0); // set subnet mask
 // IPAddress remote(10,0,0,51);    // PC IP
-IPAddress remote(192,168,1,2);
+IPAddress remote(10,0,0,51);
 unsigned int localPort = 1682;     // local port to listen on
 unsigned int remotePort = 1682;
 
@@ -98,8 +105,8 @@ uint8_t loopCounter = 0;
 uint32_t id = 0;
 bool valveStateChange = 1;
 
-elapsedMillis fireDuration;
-elapsedMillis purgeDuration;
+unsigned long fireDuration = 0;
+unsigned long purgeDuration = 0;
 
 void setup() 
 {
@@ -141,55 +148,64 @@ void setup()
   Serial.println(adc.readRegister(DRATE_REG));
   delay(100);
 
+  // Set up thermocouples
+  // engineTC.setThermocoupleType(MAX31856_TCTYPE_K);
+  // engineTC.setConversionMode(MAX31856_CONTINUOUS);
+
   //Freeze the display for 1 sec
   delay(1000);
 }
 
 
 // the function converts a 32 bits int array into 8 bit int for udp compatibility
-void bufferConversion32(uint32_t* arr, int size, uint8_t* buffer)
-{
-  uint8_t startByte; // the position to begin shifting; multiple of 4 because there are
-                     // 4 bytes in a 32 bits int
+// void bufferConversion32(uint32_t* arr, int size, uint8_t* buffer)
+// {
+//   uint8_t startByte; // the position to begin shifting; multiple of 4 because there are
+//                      // 4 bytes in a 32 bits int
 
-  // for loop to index next value in 32 bit array
-  for (int i = 0; i<size; i++)
-  {
-    startByte = 4*i;
-    // for loop to shifts 4 bytes individually from int32 
-    for(int j = 0; j<4; j++)
-    {
-      buffer[startByte + j] = (arr[i] >> (8*(3-j))) & 0xFF;
-    }
-  }
-}
+//   // for loop to index next value in 32 bit array
+//   for (int i = 0; i<size; i++)
+//   {
+//     startByte = 4*i;
+//     // for loop to shifts 4 bytes individually from int32 
+//     for(int j = 0; j<4; j++)
+//     {
+//       buffer[startByte + j] = (arr[i] >> (8*(3-j))) & 0xFF;
+//     }
+//   }
+// }
 
 void loop() 
 {
   uint32_t commandBuffer[2] = {0,0};
-  int command = commandBuffer[1];
-  uint32_t valveStates[8] = {2,machina.isok_state,machina.isol_state,machina.maink_state,
-                            machina.mainl_state,machina.ventk_state,machina.ventl_state,machina.purge_state};
+  // int command = commandBuffer[1];
+  uint32_t valveStates[9] = {2,machina.isok_state,machina.isol_state,machina.maink_state,
+                            machina.mainl_state,machina.ventk_state,machina.ventl_state,machina.purge_state,
+                            machina.breakWireStatus};
 
   // convert 32 bit int array into 8 bit int array for udp compatibility
-  uint8_t valveStatesBuffer[40];
+  uint8_t valveStatesBuffer[36];
+
+  // get thermocouple temperature
+  // long engineTemp = engineTC.readThermocoupleTemperature(); //need to convert to temperature by multiplying 0.0078125
+
 
   if(machina.valveStateChange)
   {
-    bufferConversion32(valveStates,8,valveStatesBuffer);
+    Serial.println(machina.getState());
 
-    // for (int i = 0; i<8; i++)
-    // {   
-    //   uint8_t startByte = 4*i;
+    for (int i = 0; i<9; i++)
+    {   
+      uint8_t startByte = 4*i;
 
-    //   // for loop to shifts 4 bytes individually from int32 
-    //   for(int j = 0; j<4; j++)
-    //   {
-    //     valveStatesBuffer[startByte + j] = (valveStates[i] >> (8*(3-j))) & 0xFF;
-    //   }
-    // }
+      // for loop to shifts 4 bytes individually from int32 
+      for(int j = 0; j<4; j++)
+      {
+        valveStatesBuffer[startByte + j] = (valveStates[i] >> (8*(3-j))) & 0xFF;
+      }
+    }
 
-    Udp.send(remote,remotePort,valveStatesBuffer,40);
+    Udp.send(remote,remotePort,valveStatesBuffer,36);
     machina.valveStateChange = 0;
   }
 
@@ -202,23 +218,22 @@ void loop()
 
     commandBuffer[0] = packetBuffer[3]; 
     commandBuffer[1] = packetBuffer[7]; 
-    Serial.print(command);
-    Serial.print(" ");
-    Serial.println(packetSize);
   }
   else
   {}
 
   for (int i = 0; i<4; i++)
   {
-    outgoingDataPacketBuffers[36+i] = (millis() >> (8*(3-i))) & 0xFF;
+    outgoingDataPacketBuffers[(dataPacketSize-4)+i] = (millis() >> (8*(3-i))) & 0xFF;
   }
 
   // filling individual readings into an array
   for (int i = 0; i < sensor_number; i++)
   {
+    long tempData;
     uint8_t startByte = (i*4) + 4;
-    long tempData = adc.cycleSingle();
+    tempData = adc.cycleSingle();
+    
     for (int j = 0; j<4; j++)
     {
       outgoingDataPacketBuffers[startByte+j] = (tempData >> (8*(3-j))) & 0xFF;
@@ -230,7 +245,11 @@ void loop()
     outgoingDataPacketBuffers[j] = (id >> (8*(3-j))) & 0xFF;
   }
 
+  // send sensor data packet
   Udp.send(remote,remotePort,outgoingDataPacketBuffers,dataPacketSize);
-    
-  machina.processCommand(command, fireTime, purgeTime, fireDuration, purgeDuration);
+
+  // activate state machine
+  fireDuration = millis() - machina.referenceTime;
+  purgeDuration = millis() - machina.referenceTime;
+  machina.processCommand(commandBuffer[1], fireTime, purgeTime, fireDuration, purgeDuration);
 }
