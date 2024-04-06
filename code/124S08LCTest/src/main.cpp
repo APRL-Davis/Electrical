@@ -20,27 +20,24 @@ void setup() {
   stopConversions();
 
   writeSingleRegister(REG_ADDR_INPMUX, 0b00000001);
-  //writeSingleRegister(REG_ADDR_PGA, 0b00001111);
-  writeSingleRegister(REG_ADDR_DATARATE, 0b00001011);
+  //set pga enabled, gain 128 TODO: Check if conversion needs to be active to set pga register
+  writeSingleRegister(REG_ADDR_PGA, ADS_PGA_ENABLED|ADS_GAIN_128);
+  //set drate to 800
+  writeSingleRegister(REG_ADDR_DATARATE, ADS_DR_800);
 
+  #ifdef DEBUG
   Serial.print("pga: ");
   Serial.println(readSingleRegister(REG_ADDR_PGA));
   Serial.print("datarate: ");
   Serial.println(readSingleRegister(REG_ADDR_DATARATE));
+  #endif
 
-  delay(5000);
+  delay(10); //allow adc time to settle/config
   startConversions();
   enableDRDYinterrupt(true);
 }
 
 void loop() {
-  // Serial.print("ID: ");
-  // Serial.println(readSingleRegister(REG_ADDR_ID));
-
-  // Serial.print("STATUS: ");
-  // Serial.println(readSingleRegister(REG_ADDR_STATUS));
-
-  // delay(5000);
 
   if(waitForDRDYHtoL(10000)){
     Serial.print("Time: ");
