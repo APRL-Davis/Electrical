@@ -7,6 +7,7 @@ public:
     bool valveStateChange;
     bool getFire;
     bool breakWireStatus; 
+    bool keySwitchStatus;
 
     // relay states/
     bool isok_state;

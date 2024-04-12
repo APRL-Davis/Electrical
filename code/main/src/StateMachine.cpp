@@ -27,7 +27,8 @@ void StateMachine::initializeMachina()
     pinMode(_loxVent,OUTPUT);
     pinMode(_purge,OUTPUT);   
     pinMode(_igniter, OUTPUT);
-    pinMode(_keySwitch, INPUT);
+    pinMode(_keySwitch, INPUT_PULLUP);
+    pinMode(_breakWire, INPUT_PULLDOWN);
 
     isok_state = 0;
     isol_state = 0;
@@ -40,7 +41,8 @@ void StateMachine::initializeMachina()
     valveStateChange = 1;
     referenceTime = 0;
     getFire = 0;
-    breakWireStatus = 0;
+    breakWireStatus = 1;
+    keySwitchStatus = digitalRead(_keySwitch);
 
     _state = DEFAULT;
 }
@@ -142,10 +144,11 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
     switch(_state)
     {
         case DEFAULT:
-            if(digitalRead(_keySwitch))
-            {
-                changeState(KEY);
-            }
+            // if(!digitalRead(_keySwitch))
+            // {
+            //     changeState(KEY);
+            //     keySwitchStatus = 0;
+            // }
             if(command == PRESSURIZE)
             {
                 changeState(ARMED);  
@@ -159,15 +162,17 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
             break;
 
         case ARMED:
-            if(digitalRead(_keySwitch))
-            {
-                changeState(KEY);
-            }
+            // if(!digitalRead(_keySwitch))
+            // {
+            //     changeState(KEY);
+            //     keySwitchStatus = 0;
+            // }
             if(command == FIRE)
             {
                 digitalWrite(_igniter, HIGH);
                 referenceTime = millis();
                 changeState(HOT);
+                valveStateChange = 1; 
             }
             if(command == DEPRESSURIZE)
             {
@@ -182,10 +187,11 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
             break;
 
         case HOT:
-            if(digitalRead(_keySwitch))
-            {
-                changeState(KEY);
-            }
+            // if(!digitalRead(_keySwitch))
+            // {
+            //     changeState(KEY);
+            //     keySwitchStatus = 0;
+            // }
             if(command == ABORT)
             {
                 abort();
@@ -194,7 +200,7 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
                 endFireFlag = 1;
                 valveStateChange = 1;
             }
-            if(fireDuration >= 3000 && digitalRead(_breakWire))
+            if(fireDuration <= 3000 && !digitalRead(_breakWire))
             {
                 digitalWrite(_loxMain, HIGH);
                 mainl_state = 1;
@@ -204,14 +210,12 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
             }
             else if(fireDuration >= 150 && mainl_state == 1 && maink_state == 0 && getFire)
             {
-                Serial.println("inside maink");
                 digitalWrite(_keroMain, HIGH);
                 maink_state = 1;
                 valveStateChange = 1;
             }
             else if (fireDuration >= targetTime && !endFireFlag && getFire)
             {
-                Serial.println("end fire");
                 endFire();
                 purge();
                 referenceTime = millis();
@@ -239,10 +243,11 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
             break;
 
         case MANUAL:
-            if(digitalRead(_keySwitch))
-            {
-                changeState(KEY);
-            }
+            // if(!digitalRead(_keySwitch))
+            // {
+            //     changeState(KEY);
+            //     keySwitchStatus = 0;
+            // }
             if(command == 1) // relay 1 on
             {
                 isok_state = !isok_state;
@@ -292,8 +297,9 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
                 changeState(DEFAULT);
             }
         case KEY:
-            if(digitalRead(!_keySwitch))
+            if(digitalRead(_keySwitch))
             {
+                keySwitchStatus = 1;
                 changeState(DEFAULT);
                 abort();
             }
@@ -303,10 +309,10 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
 int StateMachine::getState()
 {
     // default = 0
-    // check = 1
-    // armed = 2
-    // hot = 3
-    // manual = 4
+    // armed = 1
+    // hot = 2
+    // manual = 3
+    // key = 4
     return _state;
 }
 

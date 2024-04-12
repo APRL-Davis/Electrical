@@ -9,11 +9,11 @@
 /*======== ADC ========*/
 
 const int CS1 = 10;
-const int DRDY = 2;
-const int PDWN = 9;
+const int DRDY = 17;
+const int PDWN = 14;
 
 ADS1256 adc(DRDY, 2000000, PDWN, CS1, 2.5); //DRDY, SPI speed, SYNC(PDWN), CS, VREF(float).
-StateMachine machina(2,3,4,5,6,7,1,14,15,16);
+StateMachine machina(33,32,29,28,31,30,34,4,2,3);
 
 long rawConversion = 0; //24-bit raw value
 float voltageValue = 0; //human-readable floating point value
@@ -69,21 +69,16 @@ int registerToRead = 0; //Register number to be read
 int registerToWrite = 0; //Register number to be written
 int registerValueToWrite = 0; //Value to be written in the selected register
 
-// Thermocouples
-// int engineTC_CS = 39;
-// int engineTC_DRDY = 38;
-// Adafruit_MAX31856 engineTC = Adafruit_MAX31856(engineTC_CS);
-
 
 //==================Ethernet==================//
 const int sensor_number = 8;
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
-IPAddress ip(10, 0, 0, 69);     // MCU IP
+IPAddress ip(192,168,88,250);     // MCU IP
 IPAddress subnet(255,255,255,0); // set subnet mask
 // IPAddress remote(10,0,0,51);    // PC IP
-IPAddress remote(10,0,0,51);
+IPAddress remote(192,168,88,251);
 unsigned int localPort = 1682;     // local port to listen on
 unsigned int remotePort = 1682;
 
@@ -110,6 +105,7 @@ unsigned long purgeDuration = 0;
 
 void setup() 
 {
+  delay(2000);
   Serial.begin(115200); //The value does not matter if you use an MCU with native USB
 
   Serial.println("Serial available");
@@ -132,10 +128,10 @@ void setup()
   // start UDP
   Udp.beginWithReuse(localPort);
 
-  // // initialize adc and set gain + data rate
+  // initialize adc and set gain + data rate
   adc.InitializeADC();
   adc.setPGA(PGA_1);
-  adc.setDRATE(DRATE_1000SPS);
+  adc.setDRATE(DRATE_10SPS);
 
   // perform self calibration
   adc.sendDirectCommand(SELFCAL);
@@ -147,10 +143,6 @@ void setup()
   Serial.print("DRATE: ");
   Serial.println(adc.readRegister(DRATE_REG));
   delay(100);
-
-  // Set up thermocouples
-  // engineTC.setThermocoupleType(MAX31856_TCTYPE_K);
-  // engineTC.setConversionMode(MAX31856_CONTINUOUS);
 
   //Freeze the display for 1 sec
   delay(1000);
@@ -178,23 +170,17 @@ void setup()
 void loop() 
 {
   uint32_t commandBuffer[2] = {0,0};
-  // int command = commandBuffer[1];
-  uint32_t valveStates[9] = {2,machina.isok_state,machina.isol_state,machina.maink_state,
+  uint32_t machineState = (uint32_t) machina.getState();
+  uint32_t valveStates[11] = {2,machina.isok_state,machina.isol_state,machina.maink_state,
                             machina.mainl_state,machina.ventk_state,machina.ventl_state,machina.purge_state,
-                            machina.breakWireStatus};
+                            machina.breakWireStatus,machina.keySwitchStatus,machineState};
 
   // convert 32 bit int array into 8 bit int array for udp compatibility
-  uint8_t valveStatesBuffer[36];
-
-  // get thermocouple temperature
-  // long engineTemp = engineTC.readThermocoupleTemperature(); //need to convert to temperature by multiplying 0.0078125
-
+  uint8_t valveStatesBuffer[44];
 
   if(machina.valveStateChange)
   {
-    Serial.println(machina.getState());
-
-    for (int i = 0; i<9; i++)
+    for (int i = 0; i<11; i++)
     {   
       uint8_t startByte = 4*i;
 
@@ -205,7 +191,7 @@ void loop()
       }
     }
 
-    Udp.send(remote,remotePort,valveStatesBuffer,36);
+    Udp.send(remote,remotePort,valveStatesBuffer,44);
     machina.valveStateChange = 0;
   }
 
@@ -233,6 +219,7 @@ void loop()
     long tempData;
     uint8_t startByte = (i*4) + 4;
     tempData = adc.cycleSingle();
+    // tempData = random(100);
     
     for (int j = 0; j<4; j++)
     {
