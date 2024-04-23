@@ -6,6 +6,8 @@
 #include <QNEthernet.h>
 #include <Adafruit_MAX31856.h>
 
+// #define PACKET_DEBUG
+
 /*======== ADC ========*/
 
 const int CS1 = 10;
@@ -13,7 +15,7 @@ const int DRDY = 17;
 const int PDWN = 14;
 
 ADS1256 adc(DRDY, 2000000, PDWN, CS1, 2.5); //DRDY, SPI speed, SYNC(PDWN), CS, VREF(float).
-StateMachine machina(33,32,29,28,31,30,34,4,2,3);
+StateMachine machina(33,32,29,28,31,30,34,4,2,3); // isok, isol, maink, mainl, ventk, ventl, purge, emerg, breakwire, igniter 
 
 long rawConversion = 0; //24-bit raw value
 float voltageValue = 0; //human-readable floating point value
@@ -25,8 +27,9 @@ char inputMode = ' '; //can be 's' and 'd': single-ended and differential
 int pgaValues[7] = {PGA_1, PGA_2, PGA_4, PGA_8, PGA_16, PGA_32, PGA_64}; //Array to store the PGA settings
 int pgaSelection = 0; //Number used to pick the PGA value from the above array
 
-const unsigned int fireTime = 5000;
-const unsigned int purgeTime = 3000;
+unsigned int fireTime = 10650;
+unsigned int purgeTime = 5000;
+bool firstLoop = 1;
 
 int drateValues[16] =
 {
@@ -95,24 +98,22 @@ int packetSize = 0;
 //timestamp 4 byte
 const int dataPacketSize = sensor_number*4+4+4; 
 uint8_t outgoingDataPacketBuffers[dataPacketSize]; // buffer for going out to PC
+uint8_t valveStatesBuffer[44];
 
 uint8_t loopCounter = 0;
 uint32_t id = 0;
 bool valveStateChange = 1;
 
-unsigned long fireDuration = 0;
-unsigned long purgeDuration = 0;
+unsigned long timeElapsed = 0;
 
 void setup() 
 {
-  delay(2000);
   Serial.begin(115200); //The value does not matter if you use an MCU with native USB
+  delay(1000);
 
   Serial.println("Serial available");
 
   machina.initializeMachina();
-
-  memset(outgoingDataPacketBuffers, 0, dataPacketSize);
 
   // Check for Ethernet hardware present
   if (!Ethernet.begin()) {
@@ -127,22 +128,29 @@ void setup()
 
   // start UDP
   Udp.beginWithReuse(localPort);
+  delay(1000);
+
 
   // initialize adc and set gain + data rate
   adc.InitializeADC();
+  delay(500);
+
   adc.setPGA(PGA_1);
-  adc.setDRATE(DRATE_10SPS);
+  delay(500);
+  adc.setDRATE(DRATE_1000SPS);
+  delay(500);
 
-  // perform self calibration
-  adc.sendDirectCommand(SELFCAL);
-  
-  Serial.print("PGA: ");
-  Serial.println(adc.readRegister(IO_REG));
-  delay(100);
-
-  Serial.print("DRATE: ");
   Serial.println(adc.readRegister(DRATE_REG));
-  delay(100);
+  Serial.println(adc.readRegister(DRATE_REG));
+  Serial.println(adc.readRegister(DRATE_REG));
+  
+  // Serial.print("PGA: ");
+  // Serial.println(adc.readRegister(IO_REG));
+  // delay(500);
+
+  // Serial.print("DRATE: ");
+  // Serial.println(adc.readRegister(DRATE_REG));
+  // delay(500);
 
   //Freeze the display for 1 sec
   delay(1000);
@@ -173,12 +181,9 @@ void loop()
   uint32_t machineState = (uint32_t) machina.getState();
   uint32_t valveStates[11] = {2,machina.isok_state,machina.isol_state,machina.maink_state,
                             machina.mainl_state,machina.ventk_state,machina.ventl_state,machina.purge_state,
-                            machina.breakWireStatus,machina.keySwitchStatus,machineState};
+                            machina.getBreakWire(),machina.keySwitchStatus,machineState};
 
-  // convert 32 bit int array into 8 bit int array for udp compatibility
-  uint8_t valveStatesBuffer[44];
-
-  if(machina.valveStateChange)
+  if(machina.valveStateChange || firstLoop)
   {
     for (int i = 0; i<11; i++)
     {   
@@ -193,6 +198,7 @@ void loop()
 
     Udp.send(remote,remotePort,valveStatesBuffer,44);
     machina.valveStateChange = 0;
+    firstLoop = 0;
   }
 
   packetSize = Udp.parsePacket(); // check to see if we receive any command
@@ -203,10 +209,8 @@ void loop()
     const uint8_t* packetBuffer = Udp.data(); 
 
     commandBuffer[0] = packetBuffer[3]; 
-    commandBuffer[1] = packetBuffer[7]; 
+    commandBuffer[1] = packetBuffer[7];
   }
-  else
-  {}
 
   for (int i = 0; i<4; i++)
   {
@@ -236,7 +240,6 @@ void loop()
   Udp.send(remote,remotePort,outgoingDataPacketBuffers,dataPacketSize);
 
   // activate state machine
-  fireDuration = millis() - machina.referenceTime;
-  purgeDuration = millis() - machina.referenceTime;
-  machina.processCommand(commandBuffer[1], fireTime, purgeTime, fireDuration, purgeDuration);
+  timeElapsed = millis() - machina.referenceTime;
+  machina.processCommand(commandBuffer[1], fireTime, purgeTime, timeElapsed, 150);
 }
