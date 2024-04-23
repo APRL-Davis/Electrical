@@ -41,7 +41,7 @@ void StateMachine::initializeMachina()
     valveStateChange = 1;
     referenceTime = 0;
     getFire = 0;
-    breakWireStatus = 1;
+    breakWireStatus = digitalRead(_breakWire);
     keySwitchStatus = digitalRead(_keySwitch);
 
     _state = DEFAULT;
@@ -97,14 +97,6 @@ void StateMachine::depressurize()
     ventl_state = 0;
 }
 
-void StateMachine::fire()
-{
-    digitalWrite(_keroMain, HIGH);
-    digitalWrite(_loxMain, HIGH);
-    maink_state = 1;
-    mainl_state = 1;
-}
-
 void StateMachine::endFire()
 {
     digitalWrite(_keroMain, LOW);
@@ -129,6 +121,7 @@ void StateMachine::abort()
     digitalWrite(_loxIsolation, LOW);
     digitalWrite(_keroVent, LOW);
     digitalWrite(_loxVent, LOW);
+    digitalWrite(_purge, HIGH);
 
     isok_state = 0;
     isol_state = 0;
@@ -136,10 +129,11 @@ void StateMachine::abort()
     mainl_state = 0;
     ventk_state = 0;
     ventl_state = 0;
+    purge_state = 1;
 }
 
 void StateMachine::processCommand(int command, unsigned long targetTime, unsigned long purgeTime, 
-                                unsigned long fireDuration, unsigned long purgeDuration)
+                                unsigned long timeElapsed, unsigned long keroDelay)
 {
     switch(_state)
     {
@@ -155,9 +149,17 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
                 pressurize();
                 valveStateChange = 1; 
             }
-            else if (command == FULL)
+            if (command == FULL)
             {
                 changeState(MANUAL);
+                valveStateChange = 1; 
+            }
+            if(purge_state == 1 && timeElapsed >= 4000)
+            {
+                digitalWrite(_purge, LOW);
+                endFireFlag = 0;
+                purge_state = 0;
+                valveStateChange = 1;
             }
             break;
 
@@ -180,9 +182,10 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
                 depressurize();
                 valveStateChange = 1;
             }
-            else if (command == FULL)
+            if (command == FULL)
             {
                 changeState(MANUAL);
+                valveStateChange = 1;
             }
             break;
 
@@ -195,48 +198,51 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
             if(command == ABORT)
             {
                 abort();
-                purge();
+                changeState(DEFAULT);
                 referenceTime = millis();
                 endFireFlag = 1;
                 valveStateChange = 1;
             }
-            if(fireDuration <= 3000 && !digitalRead(_breakWire))
+            if (command == FULL)
+            {
+                changeState(MANUAL);
+                valveStateChange = 1; 
+            }
+            if(timeElapsed <= 3000 && !digitalRead(_breakWire) && mainl_state == 0 && !endFireFlag)
             {
                 digitalWrite(_loxMain, HIGH);
-                mainl_state = 1;
-                valveStateChange = 1;   
+                digitalWrite(_igniter, LOW);
+                mainl_state = 1;  
                 getFire = 1;
-                referenceTime = 0;
+                valveStateChange = 1; 
+                referenceTime = millis();
             }
-            else if(fireDuration >= 150 && mainl_state == 1 && maink_state == 0 && getFire)
+            else if(timeElapsed >= keroDelay && mainl_state == 1 && maink_state == 0 && getFire && !endFireFlag)
             {
                 digitalWrite(_keroMain, HIGH);
                 maink_state = 1;
                 valveStateChange = 1;
             }
-            else if (fireDuration >= targetTime && !endFireFlag && getFire)
+            else if (timeElapsed >= targetTime && !endFireFlag && getFire)
             {
                 endFire();
                 purge();
                 referenceTime = millis();
                 endFireFlag = 1;
+                getFire = 0;
                 valveStateChange = 1;
             }
-            else if (purgeDuration >= 3000 && endFireFlag && getFire)
+            else if (timeElapsed > purgeTime && endFireFlag && !getFire)
             {
                 reset();
                 changeState(DEFAULT);
                 endFireFlag = 0;
-                getFire = 0;
                 valveStateChange = 1;
             }
-            else if (command == FULL)
-            {
-                changeState(MANUAL);
-            }
-            else
+            else if(timeElapsed > 3000 && digitalRead(_breakWire))
             {
                 changeState(ARMED);
+                reset();
                 endFireFlag = 0;
                 valveStateChange = 1;
             }          
@@ -248,6 +254,17 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
             //     changeState(KEY);
             //     keySwitchStatus = 0;
             // }
+            if(command == ORIGIN)
+            {
+                reset();
+                valveStateChange = 1;
+                changeState(DEFAULT);
+            }
+            if(command == PRESSURIZE && isok_state && isol_state && !maink_state && !mainl_state)
+            {
+                changeState(ARMED);
+                valveStateChange = 1;
+            }
             if(command == 1) // relay 1 on
             {
                 isok_state = !isok_state;
@@ -290,12 +307,7 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
                 digitalWrite(_purge, purge_state);
                 valveStateChange = 1;
             }
-            else if(command == ORIGIN)
-            {
-                reset();
-                valveStateChange = 1;
-                changeState(DEFAULT);
-            }
+            break;
         case KEY:
             if(digitalRead(_keySwitch))
             {
@@ -303,6 +315,7 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
                 changeState(DEFAULT);
                 abort();
             }
+            break;
     }
 }
 

@@ -35,14 +35,13 @@ public:
                             const int breakWire, const int igniter);
 
     void initializeMachina();
-    void processCommand(int command, unsigned long targetTime, unsigned long purgeTime, unsigned long fireDuration,
-                        unsigned long purgeDuration); //what to do when receive command
+    void processCommand(int command, unsigned long targetTime, unsigned long purgeTime, unsigned long elapsedTime,
+                        unsigned long keroDelay); //what to do when receive command
     void changeState(State newState); // given state and command, change to appropriate state STATUS
     int getState(); // returns the current state
 
     void reset();
     void pressurize();
-    void fire();
     void depressurize();
     void abort();
     void endFire();

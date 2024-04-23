@@ -4,9 +4,6 @@
 #include <time.h>
 #include <Wire.h>
 #include <QNEthernet.h>
-#include <Adafruit_MAX31856.h>
-
-// #define PACKET_DEBUG
 
 /*======== ADC ========*/
 
@@ -78,7 +75,7 @@ const int sensor_number = 8;
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
-IPAddress ip(192,168,88,250);     // MCU IP
+IPAddress ip(192,168,88,247);     // MCU IP
 IPAddress subnet(255,255,255,0); // set subnet mask
 // IPAddress remote(10,0,0,51);    // PC IP
 IPAddress remote(192,168,88,251);
@@ -152,6 +149,12 @@ void setup()
   // Serial.println(adc.readRegister(DRATE_REG));
   // delay(500);
 
+  // initialize outgoingDataPacketBuffers
+  for(int i = 0; i<dataPacketSize; i++)
+  {
+    outgoingDataPacketBuffers[i] = 0;
+  }
+
   //Freeze the display for 1 sec
   delay(1000);
 }
@@ -181,7 +184,7 @@ void loop()
   uint32_t machineState = (uint32_t) machina.getState();
   uint32_t valveStates[11] = {2,machina.isok_state,machina.isol_state,machina.maink_state,
                             machina.mainl_state,machina.ventk_state,machina.ventl_state,machina.purge_state,
-                            machina.getBreakWire(),machina.keySwitchStatus,machineState};
+                            machina.breakWireStatus,machina.keySwitchStatus,machineState};
 
   if(machina.valveStateChange || firstLoop)
   {

@@ -66,15 +66,15 @@ void ADS1256::InitializeADC()
   
   //Applying arbitrary default values to speed up the starting procedure if the user just want to get quick readouts
   delay(200);
-  writeRegister(STATUS_REG, B00110110); //BUFEN and ACAL enabled, Order is MSB, rest is read only
+  writeRegister(STATUS_REG, 0b00110110); //BUFEN and ACAL enabled, Order is MSB, rest is read only
   delay(200);
-  writeRegister(MUX_REG, B00000001); //MUX AIN0+AIN1
+  writeRegister(MUX_REG, 0b00000001); //MUX AIN0+AIN1
   delay(200);
-  writeRegister(ADCON_REG, B00000000); //ADCON - CLK: OFF, SDCS: OFF, PGA = 0 (+/- 5 V)
+  writeRegister(ADCON_REG, 0b0000000); //ADCON - CLK: OFF, SDCS: OFF, PGA = 0 (+/- 5 V)
   delay(200);
-  writeRegister(DRATE_REG, B10000010); //100SPS 
+  writeRegister(DRATE_REG, 0b0000010); //100SPS 
   delay(200);
-  sendDirectCommand(B11110000); //Offset and self-gain calibration
+  sendDirectCommand(0b11110000); //Offset and self-gain calibration
   delay(200);
   
   _isAcquisitionRunning = false; //MCU will be waiting to start a continuous acquisition
@@ -245,11 +245,13 @@ void ADS1256::writeRegister(uint8_t registerAddress, uint8_t registerValueToWrit
   	
   delayMicroseconds(6); //see t6 in the datasheet
 
-  SPI.transfer(0x50 | registerAddress); // 0x50 = 01010000 = WREG
+  SPI.transfer((0x50 & 0b11110000) | registerAddress); // 0x50 = 01010000 = WREG
 
   SPI.transfer(0x00); //2nd (empty) command byte
   	
   SPI.transfer(registerValueToWrite); //pass the value to the register
+
+  delayMicroseconds(6);
   
   digitalWriteFast(_CS_pin, HIGH);
   SPI.endTransaction();
@@ -425,7 +427,7 @@ long ADS1256::cycleSingle()
 	  {
 		  _cycle = 0; //Reset to 0 - Restart conversion from the 1st input channel
 	  }
-    }	
-  interrupts();
+    }
+  	interrupts();
 	return _outputValue;
 }
