@@ -39,6 +39,8 @@ public:
                         unsigned long keroDelay); //what to do when receive command
     void changeState(State newState); // given state and command, change to appropriate state STATUS
     int getState(); // returns the current state
+    bool getBreakWire();
+    bool getKeySwitch();
 
     void reset();
     void pressurize();
