@@ -24,7 +24,7 @@ char inputMode = ' '; //can be 's' and 'd': single-ended and differential
 int pgaValues[7] = {PGA_1, PGA_2, PGA_4, PGA_8, PGA_16, PGA_32, PGA_64}; //Array to store the PGA settings
 int pgaSelection = 0; //Number used to pick the PGA value from the above array
 
-unsigned int fireTime = 10650;
+unsigned int fireTime = 5000;
 unsigned int purgeTime = 5000;
 bool firstLoop = 1;
 
@@ -244,5 +244,5 @@ void loop()
 
   // activate state machine
   timeElapsed = millis() - machina.referenceTime;
-  machina.processCommand(commandBuffer[1], fireTime, purgeTime, timeElapsed, 150);
+  machina.processCommand(commandBuffer[1], fireTime, purgeTime, timeElapsed, 0);
 }
