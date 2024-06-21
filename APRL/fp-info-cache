@@ -1,4 +1,11 @@
-23438340831513290
+23445187074868857
+15_screw_terminals
+PHOENIX_1984743
+
+
+0
+15
+15
 Audio_Module
 Reverb_BTDR-1H
 Digital Reverberation Unit, http://www.belton.co.kr/inc/downfile.php?seq=17&file=pdf (footprint from http://www.uk-electronic.de/PDF/BTDR-1.pdf)
@@ -96285,12 +96292,26 @@ Zigbee_Module_MRF24J40MD
 12
 12
 footprints
+AMASS_XT30PW-M_1x02_P2.50mm_Horizontal
+Connector XT30 Horizontal PCB Male, https://www.tme.eu/en/Document/ce4077e36b79046da520ca73227e15de/XT30PW%20SPEC.pdf
+RC Connector XT30
+0
+4
+2
+footprints
 BGA9_BMM350_BOS
 
 BMM350 
 0
 9
 9
+footprints
+Battery_Holder_Coin_2032_BS-7
+http://www.memoryprotectiondevices.com/datasheets/BS-7-datasheet.pdf
+
+0
+2
+2
 footprints
 E22-900M22S
 
@@ -96313,9 +96334,16 @@ BMP581
 10
 10
 footprints
-TEENSY_LONG_EXT
-Teensy 3.5/4.1 Footprint Extended<br><a href="https://www.pjrc.com/store/teensy35.html">Teensy 3.5</a><br><a href="https://www.pjrc.com/store/teensy41.html">Teensy 4.1</a><br><a href="https://media.digikey.com/pdf/Data%20Sheets/Sullins%20PDFs/Female_Headers.100_DS.pdf">Headers</a>
+QFN_M8C-0_UBL
+
+CAM-M8C-0 
+0
+31
+31
+footprints
+Teensy_41
+
 
 0
-50
-50
+65
+65

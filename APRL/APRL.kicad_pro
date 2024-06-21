@@ -113,16 +113,16 @@
         "max_error": 0.005,
         "min_clearance": 0.0,
         "min_connection": 0.0,
-        "min_copper_edge_clearance": 0.5,
+        "min_copper_edge_clearance": 0.127,
         "min_hole_clearance": 0.25,
         "min_hole_to_hole": 0.25,
         "min_microvia_diameter": 0.19999999999999998,
         "min_microvia_drill": 0.09999999999999999,
-        "min_resolved_spokes": 2,
+        "min_resolved_spokes": 1,
         "min_silk_clearance": 0.0,
         "min_text_height": 0.7999999999999999,
         "min_text_thickness": 0.08,
-        "min_through_hole_diameter": 0.3,
+        "min_through_hole_diameter": 0.19999999999999998,
         "min_track_width": 0.0,
         "min_via_annular_width": 0.09999999999999999,
         "min_via_diameter": 0.5,
@@ -172,15 +172,26 @@
         }
       ],
       "track_widths": [
-        0.0
+        0.0,
+        0.15,
+        0.3,
+        0.5
       ],
       "via_dimensions": [
         {
           "diameter": 0.0,
           "drill": 0.0
+        },
+        {
+          "diameter": 0.5,
+          "drill": 0.2
+        },
+        {
+          "diameter": 0.6,
+          "drill": 0.25
         }
       ],
-      "zones_allow_external_fillets": false
+      "zones_allow_external_fillets": true
     },
     "layer_presets": [],
     "viewports": []
@@ -401,7 +412,9 @@
     }
   },
   "libraries": {
-    "pinned_footprint_libs": [],
+    "pinned_footprint_libs": [
+      "footprints"
+    ],
     "pinned_symbol_libs": []
   },
   "meta": {
@@ -412,7 +425,7 @@
     "classes": [
       {
         "bus_width": 12,
-        "clearance": 0.2,
+        "clearance": 0.15,
         "diff_pair_gap": 0.25,
         "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
@@ -426,12 +439,41 @@
         "via_diameter": 0.8,
         "via_drill": 0.4,
         "wire_width": 6
+      },
+      {
+        "bus_width": 12,
+        "clearance": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "diff_pair_width": 0.2,
+        "line_style": 0,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "name": "IO",
+        "pcb_color": "rgb(0, 238, 255)",
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.25,
+        "via_diameter": 0.8,
+        "via_drill": 0.4,
+        "wire_width": 6
       }
     ],
     "meta": {
       "version": 3
     },
-    "net_colors": null,
+    "net_colors": {
+      "+3.3V": "rgb(255, 153, 0)",
+      "+5V": "rgb(255, 255, 0)",
+      "GND": "rgb(194, 194, 194)",
+      "SCL": "rgb(132, 0, 132)",
+      "SDA": "rgb(132, 0, 132)",
+      "SPI_MISO": "rgb(0, 255, 0)",
+      "SPI_MISO1": "rgb(255, 0, 0)",
+      "SPI_MOSI": "rgb(0, 255, 0)",
+      "SPI_MOSI1": "rgb(255, 0, 0)",
+      "SPI_SCK": "rgb(0, 255, 0)",
+      "SPI_SCK1": "rgb(255, 0, 0)"
+    },
     "netclass_assignments": null,
     "netclass_patterns": []
   },
@@ -441,7 +483,7 @@
       "idf": "",
       "netlist": "",
       "specctra_dsn": "",
-      "step": "",
+      "step": "D:/APL/Electrical/avionics.step",
       "vrml": ""
     },
     "page_layout_descr_file": ""
@@ -471,7 +513,7 @@
     },
     "net_format_name": "",
     "page_layout_descr_file": "",
-    "plot_directory": "",
+    "plot_directory": "D:/APL/Electrical/Schematics/",
     "spice_current_sheet_as_root": false,
     "spice_external_command": "spice \"%I\"",
     "spice_model_current_sheet_as_root": true,
