@@ -150,4 +150,5 @@
   (lib (name "dk_Diodes-Rectifiers-Arrays")(type "Legacy")(uri "C:/Users/hieu/Downloads/digikey-kicad-library-master/digikey-kicad-library-master/digikey-symbols/dk_Diodes-Rectifiers-Arrays.lib")(options "")(descr ""))
   (lib (name "dk_Diodes-Rectifiers-Single")(type "Legacy")(uri "C:/Users/hieu/Downloads/digikey-kicad-library-master/digikey-kicad-library-master/digikey-symbols/dk_Diodes-Rectifiers-Single.lib")(options "")(descr ""))
   (lib (name "dk_D-Sub-Connectors")(type "Legacy")(uri "C:/Users/hieu/Downloads/digikey-kicad-library-master/digikey-kicad-library-master/digikey-symbols/dk_D-Sub-Connectors.lib")(options "")(descr ""))
+  (lib (name "2024-06-26_00-14-56")(type "KiCad")(uri "${KIPRJMOD}/GPTS203211B/KiCADv6/2024-06-26_00-14-56.kicad_sym")(options "")(descr ""))
 )
