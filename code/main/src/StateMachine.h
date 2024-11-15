@@ -27,7 +27,7 @@ public:
     // abort -> default
     // full -> manual
 
-    enum State {DEFAULT, ARMED, HOT, MANUAL, KEY};
+    enum State {DEFAULT, KEYED, ARMED, HOT, LOX_RELEASED, KERO_RELEASED, MANUAL, ABORTING, PURGING};
     enum Command {ORIGIN = 13, PRESSURIZE = 12, FIRE = 14, DEPRESSURIZE = 15, ABORT = 16, FULL = 11};    
 
     StateMachine(const int keroIso, const int loxIso, const int keroMain, const int loxMain,
@@ -46,8 +46,12 @@ public:
     void pressurize();
     void depressurize();
     void abort();
+    void startFire();
     void endFire();
     void purge();
+    void finishPurge();
+    void releaseLox();
+    void releaseKero();
 
 private:
     /*======== Relays ========*/

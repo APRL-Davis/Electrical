@@ -97,6 +97,11 @@ void StateMachine::depressurize()
     ventl_state = 0;
 }
 
+void StateMachine::startFire()
+{
+    digitalWrite(_igniter, HIGH);
+}
+
 void StateMachine::endFire()
 {
     digitalWrite(_keroMain, LOW);
@@ -111,6 +116,13 @@ void StateMachine::purge()
     digitalWrite(_purge, HIGH);
 
     purge_state = 1;
+}
+
+void StateMachine::finishPurge()
+{
+    digitalWrite(_purge, LOW);
+
+    purge_state = 0;
 }
 
 void StateMachine::abort()
@@ -132,105 +144,371 @@ void StateMachine::abort()
     purge_state = 1;
 }
 
+void StateMachine::releaseLox() {
+    digitalWrite(_loxMain, HIGH);
+    digitalWrite(_igniter, LOW);
+    mainl_state = 1;  
+    getFire = 1;
+}
+
+void StateMachine::releaseKero() {
+    digitalWrite(_keroMain, HIGH);
+    maink_state = 1;
+}
+
 void StateMachine::processCommand(int command, unsigned long targetTime, unsigned long purgeTime, 
                                 unsigned long timeElapsed, unsigned long keroDelay)
 {
-    switch(_state)
-    {
+    // switch(_state)
+    // {
+    //     case DEFAULT:
+    //         if(!digitalRead(_keySwitch))
+    //         {
+    //             changeState(KEY);
+    //             abort();
+    //             keySwitchStatus = 0;
+    //             valveStateChange = 1;
+    //         }
+    //         if(command == PRESSURIZE)
+    //         {
+    //             changeState(ARMED);  
+    //             pressurize();
+    //             valveStateChange = 1; 
+    //         }
+    //         if (command == FULL)
+    //         {
+    //             changeState(MANUAL);
+    //             valveStateChange = 1; 
+    //         }
+    //         if(purge_state == 1 && timeElapsed >= 4000)
+    //         {
+    //             digitalWrite(_purge, LOW);
+    //             endFireFlag = 0;
+    //             purge_state = 0;
+    //             valveStateChange = 1;
+    //         }
+    //         break;
+
+    //     case ARMED:
+    //         if(!digitalRead(_keySwitch))
+    //         {
+    //             changeState(KEY);
+    //             abort();
+    //             keySwitchStatus = 0;
+    //             valveStateChange = 1;
+    //         }
+    //         if(command == FIRE)
+    //         {
+    //             digitalWrite(_igniter, HIGH);
+    //             referenceTime = millis();
+    //             changeState(HOT);
+    //             valveStateChange = 1; 
+    //         }
+    //         if(command == DEPRESSURIZE)
+    //         {
+    //             changeState(DEFAULT);
+    //             depressurize();
+    //             valveStateChange = 1;
+    //         }
+    //         if (command == FULL)
+    //         {
+    //             changeState(MANUAL);
+    //             valveStateChange = 1;
+    //         }
+    //         break;
+
+    //     case HOT:
+    //         if(!digitalRead(_keySwitch))
+    //         {
+    //             changeState(KEY);
+    //             abort();
+    //             keySwitchStatus = 0;
+    //             valveStateChange = 1;
+    //         }
+    //         if(command == ABORT)
+    //         {
+    //             abort();
+    //             changeState(DEFAULT);
+    //             referenceTime = millis();
+    //             endFireFlag = 1;
+    //             valveStateChange = 1;
+    //         }
+    //         if (command == FULL)
+    //         {
+    //             changeState(MANUAL);
+    //             valveStateChange = 1; 
+    //         }
+    //         if(timeElapsed <= 3000 && !digitalRead(_breakWire) && mainl_state == 0 && !endFireFlag)
+    //         {
+    //             digitalWrite(_loxMain, HIGH);
+    //             digitalWrite(_igniter, LOW);
+    //             mainl_state = 1;  
+    //             getFire = 1;
+    //             valveStateChange = 1; 
+    //             referenceTime = millis();
+    //         }
+    //         else if(timeElapsed >= keroDelay && mainl_state == 1 && maink_state == 0 && getFire && !endFireFlag)
+    //         {
+    //             digitalWrite(_keroMain, HIGH);
+    //             maink_state = 1;
+    //             valveStateChange = 1;
+    //         }
+    //         else if (timeElapsed >= targetTime && !endFireFlag && getFire)
+    //         {
+    //             endFire();
+    //             purge();
+    //             referenceTime = millis();
+    //             endFireFlag = 1;
+    //             getFire = 0;
+    //             valveStateChange = 1;
+    //         }
+    //         else if (timeElapsed > purgeTime && endFireFlag && !getFire)
+    //         {
+    //             reset();
+    //             changeState(DEFAULT);
+    //             endFireFlag = 0;
+    //             valveStateChange = 1;
+    //         }
+    //         else if(timeElapsed > 3000 && digitalRead(_breakWire) && mainl_state ==0)
+    //         {
+    //             changeState(ARMED);
+    //             digitalWrite(_igniter, LOW);
+    //             endFireFlag = 0;
+    //             valveStateChange = 1;
+    //         }          
+    //         break;
+
+    //     case MANUAL:
+    //         if(!digitalRead(_keySwitch))
+    //         {
+    //             changeState(KEY);
+    //             abort();
+    //             keySwitchStatus = 0;
+    //             valveStateChange = 1;
+    //         }
+    //         if(command == ORIGIN)
+    //         {
+    //             reset();
+    //             valveStateChange = 1;
+    //             changeState(DEFAULT);
+    //         }
+    //         if(command == PRESSURIZE && isok_state && isol_state && !maink_state && !mainl_state)
+    //         {
+    //             changeState(ARMED);
+    //             valveStateChange = 1;
+    //         }
+    //         if(command == 1) // relay 1 on
+    //         {
+    //             isok_state = !isok_state;
+    //             digitalWrite(_keroIsolation, isok_state);
+    //             valveStateChange = 1;
+    //         }
+    //         else if(command == 2) // relay 2 on
+    //         {
+    //             isol_state = !isol_state;
+    //             digitalWrite(_loxIsolation, isol_state);
+    //             valveStateChange = 1;
+    //         }
+    //         else if(command == 3) // relay 3 on
+    //         {
+    //             maink_state = !maink_state;
+    //             digitalWrite(_keroMain, maink_state);
+    //             valveStateChange = 1;
+    //         }  
+    //         else if(command == 4) // relay 4 on
+    //         {
+    //             mainl_state = !mainl_state;
+    //             digitalWrite(_loxMain, mainl_state);
+    //             valveStateChange = 1;
+    //         }  
+    //         else if(command == 5) // relay 5 on
+    //         {
+    //             ventk_state = !ventk_state;
+    //             digitalWrite(_keroVent, ventk_state);
+    //             valveStateChange = 1;
+    //         }
+    //         else if(command == 6) // relay 6 on
+    //         {
+    //             ventl_state = !ventl_state;
+    //             digitalWrite(_loxVent, ventl_state);
+    //             valveStateChange = 1;
+    //         }
+    //         else if(command == 7) 
+    //         {
+    //             purge_state = !purge_state;
+    //             digitalWrite(_purge, purge_state);
+    //             valveStateChange = 1;
+    //         }
+    //         break;
+    //     case KEY:
+    //         if(digitalRead(_keySwitch))
+    //         {
+    //             keySwitchStatus = 1;
+    //             changeState(DEFAULT);
+    //             valveStateChange = 1;
+    //         }
+    //         break;
+    // }
+
+    switch (_state) {
         case DEFAULT:
-            if(!digitalRead(_keySwitch))
+            if (digitalRead(_keySwitch)) changeState(KEYED);
+            break;
+
+        case KEYED:
+            keySwitchStatus = 1;
+
+            if (!digitalRead(_keySwitch))
             {
-                changeState(KEY);
+                changeState(ABORTING);
+                referenceTime = millis();
                 abort();
+
                 keySwitchStatus = 0;
                 valveStateChange = 1;
+
+                break;
             }
-            if(command == PRESSURIZE)
+
+            if (command == PRESSURIZE)
             {
-                changeState(ARMED);  
+                changeState(ARMED);
                 pressurize();
-                valveStateChange = 1; 
+
+                valveStateChange = 1;
             }
-            if (command == FULL)
+            else if (command == FULL)
             {
                 changeState(MANUAL);
-                valveStateChange = 1; 
+
+                valveStateChange = 1;
             }
-            if(purge_state == 1 && timeElapsed >= 4000)
+
+            break;
+
+        case ABORTING:
+            if ((millis() - referenceTime) >= 4000)
             {
-                digitalWrite(_purge, LOW);
+                finishPurge();
+                valveStateChange = 1;
+                
+                if (keySwitchStatus) changeState(KEYED);
+                else changeState(DEFAULT);
+            }
+
+            break;
+
+        case PURGING:
+            if (((millis() - referenceTime) >= purgeTime) && endFireFlag && !getFire) {
+                reset();
                 endFireFlag = 0;
-                purge_state = 0;
                 valveStateChange = 1;
-            }
-            break;
 
+                changeState(KEYED);
+            }
+        
         case ARMED:
-            if(!digitalRead(_keySwitch))
+            if (!digitalRead(_keySwitch))
             {
-                changeState(KEY);
+                changeState(ABORTING);
+                referenceTime = millis();
                 abort();
+
                 keySwitchStatus = 0;
                 valveStateChange = 1;
+
+                break;
             }
-            if(command == FIRE)
+
+            if (command == FIRE)
             {
-                digitalWrite(_igniter, HIGH);
-                referenceTime = millis();
                 changeState(HOT);
-                valveStateChange = 1; 
-            }
-            if(command == DEPRESSURIZE)
-            {
-                changeState(DEFAULT);
-                depressurize();
+                referenceTime = millis();
+                startFire();
+
                 valveStateChange = 1;
             }
-            if (command == FULL)
+            else if (command == DEPRESSURIZE)
+            {
+                changeState(KEYED);
+                depressurize();
+
+                valveStateChange = 1;
+            }
+            else if (command == FULL)
             {
                 changeState(MANUAL);
+
                 valveStateChange = 1;
             }
-            break;
 
+            break;
+        
         case HOT:
-            if(!digitalRead(_keySwitch))
+            if (!digitalRead(_keySwitch))
             {
-                changeState(KEY);
+                changeState(ABORTING);
+                referenceTime = millis();
                 abort();
+
                 keySwitchStatus = 0;
                 valveStateChange = 1;
+
+                break;
             }
-            if(command == ABORT)
+
+            if (command == ABORT)
             {
-                abort();
-                changeState(DEFAULT);
+                changeState(ABORTING);
                 referenceTime = millis();
+                abort();
+
                 endFireFlag = 1;
                 valveStateChange = 1;
+
+                break;
             }
-            if (command == FULL)
+            else if (command == FULL)
             {
                 changeState(MANUAL);
-                valveStateChange = 1; 
+
+                valveStateChange = 1;
+
+                break;
             }
-            if(timeElapsed <= 3000 && !digitalRead(_breakWire) && mainl_state == 0 && !endFireFlag)
+
+            if (((millis() - referenceTime) <= 3000) && !digitalRead(_breakWire) && (mainl_state == 0) && !endFireFlag)
             {
-                digitalWrite(_loxMain, HIGH);
-                digitalWrite(_igniter, LOW);
-                mainl_state = 1;  
-                getFire = 1;
+                releaseLox();
+                changeState(LOX_RELEASED);
                 valveStateChange = 1; 
                 referenceTime = millis();
             }
-            else if(timeElapsed >= keroDelay && mainl_state == 1 && maink_state == 0 && getFire && !endFireFlag)
+            else if ((millis() - referenceTime) > 3000 && digitalRead(_breakWire) && mainl_state == 0)
             {
-                digitalWrite(_keroMain, HIGH);
-                maink_state = 1;
+                changeState(ARMED);
+                digitalWrite(_igniter, LOW);
+                endFireFlag = 0;
                 valveStateChange = 1;
             }
-            else if (timeElapsed >= targetTime && !endFireFlag && getFire)
+
+            break;
+
+        case LOX_RELEASED:
+            if ((millis() - referenceTime) >= keroDelay && mainl_state == 1 && maink_state == 0 && getFire && !endFireFlag)
             {
+                releaseKero();
+                changeState(KERO_RELEASED);
+                valveStateChange = 1;
+            }
+
+            break;
+
+        case KERO_RELEASED:
+            if ((millis() - referenceTime) >= targetTime && !endFireFlag && getFire)
+            {
+                changeState(PURGING);
+                
                 endFire();
                 purge();
                 referenceTime = millis();
@@ -238,91 +516,7 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
                 getFire = 0;
                 valveStateChange = 1;
             }
-            else if (timeElapsed > purgeTime && endFireFlag && !getFire)
-            {
-                reset();
-                changeState(DEFAULT);
-                endFireFlag = 0;
-                valveStateChange = 1;
-            }
-            else if(timeElapsed > 3000 && digitalRead(_breakWire) && mainl_state ==0)
-            {
-                changeState(ARMED);
-                digitalWrite(_igniter, LOW);
-                endFireFlag = 0;
-                valveStateChange = 1;
-            }          
-            break;
 
-        case MANUAL:
-            if(!digitalRead(_keySwitch))
-            {
-                changeState(KEY);
-                abort();
-                keySwitchStatus = 0;
-                valveStateChange = 1;
-            }
-            if(command == ORIGIN)
-            {
-                reset();
-                valveStateChange = 1;
-                changeState(DEFAULT);
-            }
-            if(command == PRESSURIZE && isok_state && isol_state && !maink_state && !mainl_state)
-            {
-                changeState(ARMED);
-                valveStateChange = 1;
-            }
-            if(command == 1) // relay 1 on
-            {
-                isok_state = !isok_state;
-                digitalWrite(_keroIsolation, isok_state);
-                valveStateChange = 1;
-            }
-            else if(command == 2) // relay 2 on
-            {
-                isol_state = !isol_state;
-                digitalWrite(_loxIsolation, isol_state);
-                valveStateChange = 1;
-            }
-            else if(command == 3) // relay 3 on
-            {
-                maink_state = !maink_state;
-                digitalWrite(_keroMain, maink_state);
-                valveStateChange = 1;
-            }  
-            else if(command == 4) // relay 4 on
-            {
-                mainl_state = !mainl_state;
-                digitalWrite(_loxMain, mainl_state);
-                valveStateChange = 1;
-            }  
-            else if(command == 5) // relay 5 on
-            {
-                ventk_state = !ventk_state;
-                digitalWrite(_keroVent, ventk_state);
-                valveStateChange = 1;
-            }
-            else if(command == 6) // relay 6 on
-            {
-                ventl_state = !ventl_state;
-                digitalWrite(_loxVent, ventl_state);
-                valveStateChange = 1;
-            }
-            else if(command == 7) 
-            {
-                purge_state = !purge_state;
-                digitalWrite(_purge, purge_state);
-                valveStateChange = 1;
-            }
-            break;
-        case KEY:
-            if(digitalRead(_keySwitch))
-            {
-                keySwitchStatus = 1;
-                changeState(DEFAULT);
-                valveStateChange = 1;
-            }
             break;
     }
 }
