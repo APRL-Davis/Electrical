@@ -28,7 +28,22 @@ public:
     // full -> manual
 
     enum State {DEFAULT, KEYED, ARMED, HOT, LOX_RELEASED, KERO_RELEASED, MANUAL, ABORTING, PURGING};
-    enum Command {ORIGIN = 13, PRESSURIZE = 12, FIRE = 14, DEPRESSURIZE = 15, ABORT = 16, FULL = 11};    
+
+    enum Command {
+        ORIGIN = 13,
+        PRESSURIZE = 12,
+        FIRE = 14,
+        DEPRESSURIZE = 15,
+        ABORT = 16,
+        FULL = 11,
+        TOGGLE_ISO_KERO = 1,
+        TOGGLE_ISO_LOX = 2,
+        TOGGLE_MAIN_KERO = 3,
+        TOGGLE_MAIN_LOX = 4,
+        TOGGLE_KERO_VENT = 5,
+        TOGGLE_LOX_VENT = 6,
+        TOGGLE_PURGE = 7
+    };    
 
     StateMachine(const int keroIso, const int loxIso, const int keroMain, const int loxMain,
                             const int keroVent, const int loxVent, const int purge, const int keySwitch,

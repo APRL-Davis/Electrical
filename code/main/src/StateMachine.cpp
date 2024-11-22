@@ -156,8 +156,7 @@ void StateMachine::releaseKero() {
     maink_state = 1;
 }
 
-void StateMachine::processCommand(int command, unsigned long targetTime, unsigned long purgeTime, 
-                                unsigned long timeElapsed, unsigned long keroDelay)
+void StateMachine::processCommand(int command, unsigned long targetTime, unsigned long purgeTime, unsigned long keroDelay)
 {
     // switch(_state)
     // {
@@ -408,8 +407,7 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
             }
         
         case ARMED:
-            if (!digitalRead(_keySwitch))
-            {
+            if (!digitalRead(_keySwitch)) {
                 changeState(ABORTING);
                 referenceTime = millis();
                 abort();
@@ -420,23 +418,20 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
                 break;
             }
 
-            if (command == FIRE)
-            {
+            if (command == FIRE) {
                 changeState(HOT);
                 referenceTime = millis();
                 startFire();
 
                 valveStateChange = 1;
             }
-            else if (command == DEPRESSURIZE)
-            {
+            else if (command == DEPRESSURIZE) {
                 changeState(KEYED);
                 depressurize();
 
                 valveStateChange = 1;
             }
-            else if (command == FULL)
-            {
+            else if (command == FULL) {
                 changeState(MANUAL);
 
                 valveStateChange = 1;
@@ -445,8 +440,7 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
             break;
         
         case HOT:
-            if (!digitalRead(_keySwitch))
-            {
+            if (!digitalRead(_keySwitch)) {
                 changeState(ABORTING);
                 referenceTime = millis();
                 abort();
@@ -457,8 +451,7 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
                 break;
             }
 
-            if (command == ABORT)
-            {
+            if (command == ABORT) {
                 changeState(ABORTING);
                 referenceTime = millis();
                 abort();
@@ -468,8 +461,7 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
 
                 break;
             }
-            else if (command == FULL)
-            {
+            else if (command == FULL) {
                 changeState(MANUAL);
 
                 valveStateChange = 1;
@@ -477,15 +469,13 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
                 break;
             }
 
-            if (((millis() - referenceTime) <= 3000) && !digitalRead(_breakWire) && (mainl_state == 0) && !endFireFlag)
-            {
+            if (((millis() - referenceTime) <= 3000) && !digitalRead(_breakWire) && (mainl_state == 0) && !endFireFlag) {
                 releaseLox();
                 changeState(LOX_RELEASED);
                 valveStateChange = 1; 
                 referenceTime = millis();
             }
-            else if ((millis() - referenceTime) > 3000 && digitalRead(_breakWire) && mainl_state == 0)
-            {
+            else if ((millis() - referenceTime) > 3000 && digitalRead(_breakWire) && mainl_state == 0) {
                 changeState(ARMED);
                 digitalWrite(_igniter, LOW);
                 endFireFlag = 0;
@@ -495,8 +485,7 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
             break;
 
         case LOX_RELEASED:
-            if ((millis() - referenceTime) >= keroDelay && mainl_state == 1 && maink_state == 0 && getFire && !endFireFlag)
-            {
+            if ((millis() - referenceTime) >= keroDelay && mainl_state == 1 && maink_state == 0 && getFire && !endFireFlag) {
                 releaseKero();
                 changeState(KERO_RELEASED);
                 valveStateChange = 1;
@@ -505,8 +494,7 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
             break;
 
         case KERO_RELEASED:
-            if ((millis() - referenceTime) >= targetTime && !endFireFlag && getFire)
-            {
+            if ((millis() - referenceTime) >= targetTime && !endFireFlag && getFire) {
                 changeState(PURGING);
                 
                 endFire();
@@ -514,6 +502,80 @@ void StateMachine::processCommand(int command, unsigned long targetTime, unsigne
                 referenceTime = millis();
                 endFireFlag = 1;
                 getFire = 0;
+                valveStateChange = 1;
+            }
+
+            break;
+
+        case MANUAL:
+            if (!digitalRead(_keySwitch)) {
+                changeState(ABORTING);
+                referenceTime = millis();
+                abort();
+
+                keySwitchStatus = 0;
+                valveStateChange = 1;
+
+                break;
+            }
+
+            if (command == ORIGIN) {
+                changeState(KEYED);
+                reset();
+
+                valveStateChange = 1;
+
+                break;
+            }
+
+            if ((command == PRESSURIZE) && isok_state && isol_state && !maink_state && !mainl_state) {
+                changeState(ARMED);
+
+                valveStateChange = 1;
+
+                break;
+            }
+
+            if (command == TOGGLE_ISO_KERO) {
+                isok_state = !isok_state;
+                digitalWrite(_keroIsolation, isok_state);
+
+                valveStateChange = 1;
+            }
+            else if (command == TOGGLE_ISO_LOX) {
+                isol_state = !isol_state;
+                digitalWrite(_loxIsolation, isol_state);
+
+                valveStateChange = 1;
+            }
+            else if (command == TOGGLE_MAIN_KERO) {
+                maink_state = !maink_state;
+                digitalWrite(_keroMain, maink_state);
+
+                valveStateChange = 1;
+            }
+            else if (command == TOGGLE_MAIN_LOX) {
+                mainl_state = !mainl_state;
+                digitalWrite(_loxMain, mainl_state);
+
+                valveStateChange = 1;
+            }
+            else if (command == TOGGLE_KERO_VENT) {
+                ventk_state = !ventk_state;
+                digitalWrite(_keroVent, ventk_state);
+
+                valveStateChange = 1;
+            }
+            else if (command == TOGGLE_LOX_VENT) {
+                ventl_state = !ventl_state;
+                digitalWrite(_loxVent, ventl_state);
+
+                valveStateChange = 1;
+            }
+            else if (command == TOGGLE_PURGE) {
+                purge_state = !purge_state;
+                digitalWrite(_purge, purge_state);
+
                 valveStateChange = 1;
             }
 
