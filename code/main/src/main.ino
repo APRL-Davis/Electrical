@@ -95,7 +95,7 @@ int packetSize = 0;
 //timestamp 4 byte
 const int dataPacketSize = sensor_number*4+4+4; 
 uint8_t outgoingDataPacketBuffers[dataPacketSize]; // buffer for going out to PC
-uint8_t valveStatesBuffer[44];
+uint8_t valveStatesBuffer[48];
 
 uint8_t loopCounter = 0;
 uint32_t id = 0;
@@ -188,6 +188,12 @@ void loop()
 
   if(machina.valveStateChange || firstLoop)
   {
+
+    for (int i = 0; i<4; i++)
+    {
+      valveStatesBuffer[(48-4)+i] = (millis() >> (8*(3-i))) & 0xFF;
+    }
+
     for (int i = 0; i<11; i++)
     {   
       uint8_t startByte = 4*i;
@@ -199,7 +205,7 @@ void loop()
       }
     }
 
-    Udp.send(remote,remotePort,valveStatesBuffer,44);
+    Udp.send(remote,remotePort,valveStatesBuffer,48);
     machina.valveStateChange = 0;
     firstLoop = 0;
   }
