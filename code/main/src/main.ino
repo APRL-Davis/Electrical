@@ -189,11 +189,6 @@ void loop()
   if(machina.valveStateChange || firstLoop)
   {
 
-    for (int i = 0; i<4; i++)
-    {
-      valveStatesBuffer[(48-4)+i] = (millis() >> (8*(3-i))) & 0xFF;
-    }
-
     for (int i = 0; i<11; i++)
     {   
       uint8_t startByte = 4*i;
@@ -203,6 +198,12 @@ void loop()
       {
         valveStatesBuffer[startByte + j] = (valveStates[i] >> (8*(3-j))) & 0xFF;
       }
+    }
+
+
+    for (int i = 0; i<4; i++)
+    {
+      valveStatesBuffer[(48-4)+i] = (millis() >> (8*(3-i))) & 0xFF;
     }
 
     Udp.send(remote,remotePort,valveStatesBuffer,48);
